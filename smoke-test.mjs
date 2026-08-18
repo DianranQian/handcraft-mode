@@ -234,16 +234,16 @@ console.log('[9] DeepSeek 娘模式（chanMode）')
   const s1 = makeSettings()
   const c1 = makeCtx({ scoped: true, settings: s1 })
   apply(c1.ctx, undefined)
-  check('默认娘化关：段落不含娘化人设', !c1.sectionCalls[0]?.text.includes('DeepSeek娘模式'))
+  check('默认娘化关：段落不含娘化人设', !c1.sectionCalls[0]?.text.includes('鲸鱼娘模式'))
 
   // watch 打开
   const s2 = makeSettings()
   const c2 = makeCtx({ scoped: true, settings: s2 })
   apply(c2.ctx, undefined)
   s2.watches[0]({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
-  check('watch 打开娘化后：段落含娘化人设', c2.sectionCalls.at(-1)?.text.includes('DeepSeek娘模式'))
-  check('娘化人设含覆盖声明（优先于 persona）', c2.sectionCalls.at(-1)?.text.includes('优先于系统里任何其他身份描述'))
-  check('娘化人设明确不再是严肃辅导者', c2.sectionCalls.at(-1)?.text.includes('不再是严肃稳重的辅导者'))
+  check('watch 打开娘化后：段落含鲸鱼娘人设', c2.sectionCalls.at(-1)?.text.includes('鲸鱼娘模式'))
+  check('鲸鱼娘人设含覆盖声明（优先于 persona）', c2.sectionCalls.at(-1)?.text.includes('优先于系统里任何其他身份描述'))
+  check('鲸鱼娘人设明确不再是严肃辅导者', c2.sectionCalls.at(-1)?.text.includes('不再是严肃稳重的辅导者'))
   check('娘化后：人设在规则前', c2.sectionCalls.at(-1)?.text.indexOf('DeepSeek娘模式') < c2.sectionCalls.at(-1)?.text.indexOf('可运行代码演示'))
   check('娘化后：guard 行为不变（bash 仍拒）', typeof c2.guardFns[0](exec('bash')) === 'string')
 
@@ -252,7 +252,7 @@ console.log('[9] DeepSeek 娘模式（chanMode）')
   const c3 = makeCtx({ scoped: true, settings: s3 })
   apply(c3.ctx, undefined)
   const t3 = c3.sectionCalls[0]?.text
-  check('叠加：人设 + 精简规则同时存在', t3.includes('DeepSeek娘模式') && t3.includes('省电模式生效'))
+  check('叠加：人设 + 精简规则同时存在', t3.includes('鲸鱼娘模式') && t3.includes('省电模式生效'))
 }
 
 // ── 场景 J：settings/updated 事件即时重注入（预设场景无 watch 时） ──────
@@ -266,9 +266,9 @@ console.log('[10] settings/updated 事件兜底')
   check('注册了 settings/updated 监听', Array.isArray(c1.eventListeners['settings/updated']) && c1.eventListeners['settings/updated'].length === 1)
 
   const fire = (patch) => c1.eventListeners['settings/updated'][0]('handcraft-mode', patch)
-  check('初始：无娘化人设', !c1.sectionCalls[0]?.text.includes('DeepSeek娘模式'))
+  check('初始：无娘化人设', !c1.sectionCalls[0]?.text.includes('鲸鱼娘模式'))
   fire({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
-  check('事件后：段落含娘化人设（即时生效）', c1.sectionCalls.at(-1)?.text.includes('DeepSeek娘模式'))
+  check('事件后：段落含鲸鱼娘人设（即时生效）', c1.sectionCalls.at(-1)?.text.includes('鲸鱼娘模式'))
   check('事件后：guard 锁定不变', typeof c1.guardFns[0](exec('bash')) === 'string')
 
   // 幂等：同档位重复事件不重复注入

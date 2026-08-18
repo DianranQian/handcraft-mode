@@ -48,7 +48,7 @@ const TOGGLES: ToggleSpec[] = [
   { key: 'memoryTools', label: '记忆与待办（默认关）', hint: 'memory / dtodo / 目标管理' },
   { key: 'codeSnippets', label: '代码演示（默认开）', hint: '允许 AI 给完整可运行代码 + 讲解' },
   { key: 'ecoMode', label: '省电模式（默认关）', hint: '回答精简，降低 token 费用' },
-  { key: 'chanMode', label: 'DeepSeek娘（默认关）', hint: 'AI 化身元气萌娘指导老师' },
+  { key: 'chanMode', label: '鲸鱼娘（默认关）', hint: 'AI 化身治愈系鲸鱼娘指导老师' },
 ]
 
 const rowStyle: React.CSSProperties = {

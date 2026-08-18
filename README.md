@@ -85,7 +85,7 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 | `memoryTools` | `false` | 记忆与待办：memory/dtodo/目标管理（默认关） |
 | `codeSnippets` | `true` | 代码演示档：允许 AI 给完整可运行代码（提示层，默认开） |
 | `ecoMode` | `false` | 省电模式：追加"回答精简"规则，降低输出 token 费用 |
-| `chanMode` | `false` | DeepSeek 娘模式：AI 化身元气萌娘指导老师（人设层） |
+| `chanMode` | `false` | 鲸鱼娘模式：AI 化身治愈系鲸鱼娘指导老师（人设层） |
 | `demoPromptText` | 内置 | 代码演示档的行为约束段落（可覆盖） |
 | `injectPrompt` | `true` | 注入行为约束段落 |
 | `sectionOrder` | `50` | 约束段落在系统提示中的排序 |
