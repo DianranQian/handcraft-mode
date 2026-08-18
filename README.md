@@ -19,7 +19,7 @@ mkdir -p ~/.dsh/.agent-presets/handcraft
 cp preset/preset.yml preset/agent.cordis.yml ~/.dsh/.agent-presets/handcraft/
 ```
 
-重启 dsh web，刷新浏览器。验证：设置面板 General 出现「手搓模式」行（UI 开关）。
+重启 dsh web，刷新浏览器。验证：设置面板出现「手搓模式」分区入口。
 
 本地开发时用 `pnpm dsh plugin --profile web add ./handcraft-mode`（指向本地目录）替代第 1 步。
 
@@ -30,7 +30,7 @@ cp preset/preset.yml preset/agent.cordis.yml ~/.dsh/.agent-presets/handcraft/
 ## 使用
 
 1. 新建会话 → 预设选择器选「手搓模式」→ 只有这个会话被锁定
-2. 设置面板 General →「手搓模式」行：总开关 + 读文件 / 搜索网络 / 提问 / 写文件 四个细分开关，改动即时生效
+2. 设置面板 → 导航里的「手搓模式」分区：总开关 + 读文件 / 看图 / 搜索网络 / 提问 / 写文件 / 记忆与待办 六个能力开关，改动即时生效
 3. 想退出：关掉「启用」总开关（该会话全部工具放行）
 
 ## 文件结构
@@ -42,9 +42,9 @@ handcraft-mode/
 ├── preset/               # agent 预设模板（复制到 ~/.dsh/.agent-presets/handcraft/）
 │   ├── preset.yml
 │   └── agent.cordis.yml
-├── src/client/           # 浏览器半源码（TS/React 设置行）
+├── src/client/           # 浏览器半源码（TS/React 设置分区，仿 dsh-pet）
 │   ├── index.ts
-│   ├── HandcraftRow.tsx
+│   ├── HandcraftSection.tsx
 │   └── settings-store.ts
 ├── tsdown.config.ts      # client 半构建配置（closure-factory bundle）
 ├── lib/client.js         # 构建产物（tsdown 生成）
