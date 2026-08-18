@@ -269,14 +269,25 @@ export function apply(ctx, config) {
   ctx.logger.info(`[handcraft-mode] 本会话已启用：放行 ${summarize()}`)
 
   // 可见性裁剪：deny 名单隐藏未开放的工具（省 token）。
-  try {
-    ctx.tools.restrict({ deny: denyList() })
-    ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)
-  } catch (error) {
-    // 典型原因：deny 名单含当前部署未注册的名字。降级 guard-only，
-    // 执行仍被锁死，只是模型还看得到这些工具。
-    ctx.logger.warn(`[handcraft-mode] restrict 失败，降级 guard-only: ${error?.message ?? error}`)
+  // 可重入：settings 变化（watch/事件）时先释放旧 restrict 再注册新的，
+  // 让工具层开关（读/搜/问/写/看图/记忆/总开关）对已存在会话也即时生效。
+  let restrictDisposer = null
+  const applyRestrict = () => {
+    if (restrictDisposer !== null) {
+      restrictDisposer()
+      restrictDisposer = null
+    }
+    if (!state.enabled) return
+    try {
+      restrictDisposer = ctx.tools.restrict({ deny: denyList() })
+      ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)
+    } catch (error) {
+      // 典型原因：deny 名单含当前部署未注册的名字。降级 guard-only，
+      // 执行仍被锁死，只是模型还看得到这些工具。
+      ctx.logger.warn(`[handcraft-mode] restrict 失败，降级 guard-only: ${error?.message ?? error}`)
+    }
   }
+  applyRestrict()
 
   // ── 第三层：行为约束段落（注册进本 agent 的 scope 层，随会话销毁清理）。
   // codeSnippets 档位决定段落文本：手搓档（默认）不给完整代码；
@@ -312,8 +323,10 @@ export function apply(ctx, config) {
   }
   injectPrompt()
 
-  // settings 变化时：guard/deny 读 state 自动响应；提示段落按档位重注入。
+  // settings 变化时：guard/deny 读 state 自动响应；提示段落按档位重注入；
+  // 可见性按新 deny 名单重裁剪（工具层开关即时生效）。
   onSettingsChanged = () => {
     injectPrompt()
+    applyRestrict()
   }
 }

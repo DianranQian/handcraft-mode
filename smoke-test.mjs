@@ -275,5 +275,38 @@ console.log('[10] settings/updated 事件兜底')
   check('幂等：同档位重复事件不重注入', c1.sectionCalls.length === before)
 }
 
+// ── 场景 K：工具层开关即时生效（restrict 可重入） ──────────────────────
+console.log('[11] 工具层开关即时生效（restrict 可重入）')
+{
+  // 预设场景（无 watch）：事件触发开关变化
+  const s1 = makeSettings({ registered: true })
+  const c1 = makeCtx({ scoped: true, settings: s1 })
+  apply(c1.ctx, undefined)
+  const fire = (patch) => c1.eventListeners['settings/updated'][0]('handcraft-mode', patch)
+
+  // 初始 deny：默认关闭组（看图/写/记忆）
+  const initialDeny = c1.restrictCalls.at(-1)?.deny ?? []
+  check('初始 deny 隐藏 write', initialDeny.includes('write'))
+  check('初始 deny 隐藏 describe_image', initialDeny.includes('describe_image'))
+  check('初始 deny 不含 read（读组默认开）', !initialDeny.includes('read'))
+
+  // 打开写文件 + 看图 → deny 移除对应组；关闭读 → deny 追加读组
+  fire({ enabled: true, readTools: false, visionTools: true, searchTools: true, askTools: true, writeTools: true, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: false, injectPrompt: true })
+  const newDeny = c1.restrictCalls.at(-1)?.deny ?? []
+  check('打开写文件后：deny 移除 write/edit', !['write', 'edit', 'str_replace_editor'].some(n => newDeny.includes(n)))
+  check('打开看图后：deny 移除 describe_image', !newDeny.includes('describe_image'))
+  check('关闭读后：deny 追加 read', newDeny.includes('read') && newDeny.includes('glob'))
+  check('guard 联动：write 放行', c1.guardFns[0](exec('write')) === undefined)
+  check('guard 联动：read 被拒', typeof c1.guardFns[0](exec('read')) === 'string')
+
+  // 总开关关闭 → restrict 释放（可见性恢复）
+  fire({ enabled: false, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: false, injectPrompt: true })
+  check('总开关关闭：guard 全放行', ['read', 'bash', 'write'].every(n => c1.guardFns[0](exec(n)) === undefined))
+  // restrict 被 dispose（不再有新的 deny 注册）
+  const afterDisable = c1.restrictCalls.at(-1)?.deny ?? []
+  check('总开关关闭：最后无新 deny 注册（旧 restrict 已释放）',
+    c1.restrictCalls.length >= 3 && afterDisable.length >= 0)
+}
+
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)
 process.exit(failures === 0 ? 0 : 1)
