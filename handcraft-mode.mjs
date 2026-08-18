@@ -97,6 +97,9 @@ export const DEFAULT_DEMO_PROMPT = `Handcraft Mode（手搓模式）正在生效
 - 鼓励学生先自己尝试；学生明确说"写不出来/给个演示"时，再给完整代码。
 - 每次只把一件事说透，等学生说"好了"再讲下一件。`
 
+/** 省电模式（ecoMode）追加的回复精简规则：降低输出 token 费用。 */
+export const ECO_SUFFIX = `\n\n（省电模式生效）回答务必精简：直接给结论与必要内容，不要寒暄、不要复述问题、不要多余的铺垫或扩展讲解。代码只给本次任务需要的部分。`
+
 export const DEFAULT_DENY_REASON = '手搓模式已锁定：AI 只能动嘴讲解。你可以读文件和搜索资料，但禁止执行命令、写文件、修改文件等一切替你动手的操作。请改为口头指导，只给关键代码片段和思路。'
 
 /** Plugin config / settings schema（UI 开关的字段定义）。 */
@@ -117,6 +120,8 @@ export const Config = z.object({
   memoryTools: z.boolean().default(false),
   /** 代码演示档位：允许 AI 给完整可运行代码（提示层，非工具）；默认开。 */
   codeSnippets: z.boolean().default(true),
+  /** 省电模式：追加"回答精简"规则，降低输出 token 费用；默认关。 */
+  ecoMode: z.boolean().default(false),
   /** 是否注入"手搓模式"行为约束段落。 */
   injectPrompt: z.boolean().default(true),
   /** 约束段落在系统提示中的排序（persona 是 0，工具说明在 100-199）。 */
@@ -141,6 +146,7 @@ const DEFAULTS = {
   writeTools: false,
   memoryTools: false,
   codeSnippets: true,
+  ecoMode: false,
   injectPrompt: true,
   sectionOrder: 50,
   promptText: DEFAULT_PROMPT,
@@ -255,7 +261,10 @@ export function apply(ctx, config) {
   // ── 第三层：行为约束段落（注册进本 agent 的 scope 层，随会话销毁清理）。
   // codeSnippets 档位决定段落文本：手搓档（默认）不给完整代码；
   // 演示档允许完整可运行代码，但要求"先思路、再代码、后逐段讲解"。
-  const promptText = () => state.codeSnippets ? state.demoPromptText : state.promptText
+  const promptText = () => {
+    const base = state.codeSnippets ? state.demoPromptText : state.promptText
+    return state.ecoMode ? base + ECO_SUFFIX : base
+  }
   let promptDisposer = null
   const injectPrompt = () => {
     if (promptDisposer !== null) {

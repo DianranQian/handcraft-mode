@@ -196,5 +196,30 @@ console.log('[7] 代码演示档位（codeSnippets）')
   check('已存值 codeSnippets=false：首段即手搓档', c3.sectionCalls[0]?.text.includes('不要输出可直接复制粘贴的完整代码'))
 }
 
+// ── 场景 H：省电模式（ecoMode） ────────────────────────────────────────
+console.log('[8] 省电模式（ecoMode）')
+{
+  // 默认关：段落无 ECO 后缀
+  const s1 = makeSettings()
+  const c1 = makeCtx({ scoped: true, settings: s1 })
+  apply(c1.ctx, undefined)
+  check('默认省电关：段落不含精简规则', !c1.sectionCalls[0]?.text.includes('省电模式生效'))
+
+  // watch 打开：段落追加精简规则
+  const s2 = makeSettings()
+  const c2 = makeCtx({ scoped: true, settings: s2 })
+  apply(c2.ctx, undefined)
+  s2.watches[0]({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: true, injectPrompt: true })
+  check('watch 打开省电后：段落含精简规则', c2.sectionCalls.at(-1)?.text.includes('省电模式生效'))
+  check('省电后：仍保留演示档内容', c2.sectionCalls.at(-1)?.text.includes('可运行代码演示'))
+  check('省电：guard 行为不变（bash 仍拒）', typeof c2.guardFns[0](exec('bash')) === 'string')
+
+  // 已存值 ecoMode=true
+  const s3 = makeSettings({ stored: { ecoMode: true } })
+  const c3 = makeCtx({ scoped: true, settings: s3 })
+  apply(c3.ctx, undefined)
+  check('已存值 ecoMode=true：首段含精简规则', c3.sectionCalls[0]?.text.includes('省电模式生效'))
+}
+
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)
 process.exit(failures === 0 ? 0 : 1)

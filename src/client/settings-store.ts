@@ -24,6 +24,7 @@ export interface HandcraftSettingsValue {
   writeTools: boolean
   memoryTools: boolean
   codeSnippets: boolean
+  ecoMode: boolean
   injectPrompt: boolean
 }
 
@@ -45,6 +46,7 @@ const DEFAULTS: HandcraftSettingsValue = {
   writeTools: false,
   memoryTools: false,
   codeSnippets: true,
+  ecoMode: false,
   injectPrompt: true,
 }
 

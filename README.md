@@ -84,6 +84,7 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 | `writeTools` | `false` | 写文件：write/edit/str_replace_editor（默认关） |
 | `memoryTools` | `false` | 记忆与待办：memory/dtodo/目标管理（默认关） |
 | `codeSnippets` | `true` | 代码演示档：允许 AI 给完整可运行代码（提示层，默认开） |
+| `ecoMode` | `false` | 省电模式：追加"回答精简"规则，降低输出 token 费用 |
 | `demoPromptText` | 内置 | 代码演示档的行为约束段落（可覆盖） |
 | `injectPrompt` | `true` | 注入行为约束段落 |
 | `sectionOrder` | `50` | 约束段落在系统提示中的排序 |
@@ -97,6 +98,13 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 node <Harness 仓库>/node_modules/.bin/tsdown   # 改了浏览器半之后重建 lib/client.js
 node smoke-test.mjs                             # 冒烟测试（38 项）
 ```
+
+## 省钱建议
+
+- **省电模式开关**：设置面板 → 手搓模式分区 →「省电模式」，打开后 AI 回答被要求精简（少寒暄、少铺垫、代码只给需要的部分），直接降低输出 token 费用
+- **历史自动压缩**：预设已内置 compaction（多轮对话自动压缩旧历史），防止输入 token 随轮数膨胀——这是最容易被忽视的费用大头
+- **推理档（最大头）**：`~/.dsh/settings.yaml` 里 `agent-default-model.reasoningEffort: max` 很烧钱；空闲学习场景改成 `low` 或删掉该行（用模型默认），费用可降一个量级，体验差别不大
+- 工具可见性已最小化（restrict 隐藏未开放工具），工具 schema 占用的输入 token 已压到最低
 
 ## 注意事项
 
