@@ -115,8 +115,8 @@ export const Config = z.object({
   writeTools: z.boolean().default(false),
   /** 允许记忆与待办（memory/dtodo/目标管理）；默认关。 */
   memoryTools: z.boolean().default(false),
-  /** 代码演示档位：允许 AI 给完整可运行代码（提示层，非工具）；默认关。 */
-  codeSnippets: z.boolean().default(false),
+  /** 代码演示档位：允许 AI 给完整可运行代码（提示层，非工具）；默认开。 */
+  codeSnippets: z.boolean().default(true),
   /** 是否注入"手搓模式"行为约束段落。 */
   injectPrompt: z.boolean().default(true),
   /** 约束段落在系统提示中的排序（persona 是 0，工具说明在 100-199）。 */
@@ -140,7 +140,7 @@ const DEFAULTS = {
   askTools: true,
   writeTools: false,
   memoryTools: false,
-  codeSnippets: false,
+  codeSnippets: true,
   injectPrompt: true,
   sectionOrder: 50,
   promptText: DEFAULT_PROMPT,

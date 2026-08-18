@@ -40,7 +40,7 @@ const TOGGLES: ToggleSpec[] = [
   { key: 'askTools', label: '提问', hint: 'ask_user_question' },
   { key: 'writeTools', label: '写文件（默认关）', hint: 'write / edit / str_replace_editor' },
   { key: 'memoryTools', label: '记忆与待办（默认关）', hint: 'memory / dtodo / 目标管理' },
-  { key: 'codeSnippets', label: '代码演示（默认关）', hint: '允许 AI 给完整可运行代码 + 讲解' },
+  { key: 'codeSnippets', label: '代码演示（默认开）', hint: '允许 AI 给完整可运行代码 + 讲解' },
 ]
 
 const rowStyle: React.CSSProperties = {

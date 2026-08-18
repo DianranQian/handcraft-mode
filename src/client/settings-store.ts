@@ -44,7 +44,7 @@ const DEFAULTS: HandcraftSettingsValue = {
   askTools: true,
   writeTools: false,
   memoryTools: false,
-  codeSnippets: false,
+  codeSnippets: true,
   injectPrompt: true,
 }
 
