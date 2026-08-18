@@ -39,6 +39,7 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
   const sectionCalls = []
   const logs = []
   const guardFns = []
+  const eventListeners = {}
   const ctx = {
     tools: {
       guard(fn) { guardFns.push(fn); return () => {} },
@@ -49,6 +50,11 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
         return () => {}
       },
     },
+    on(event, cb) {
+      ;(eventListeners[event] ??= []).push(cb)
+      return () => {}
+    },
+    effect(cb) { const d = cb(); return () => { if (typeof d === 'function') d() } },
     logger: {
       info: (...a) => logs.push(['info', ...a]),
       warn: (...a) => logs.push(['warn', ...a]),
@@ -60,7 +66,7 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
       section(section) { sectionCalls.push(section); return () => {} },
     }
   }
-  return { ctx, restrictCalls, sectionCalls, logs, guardFns }
+  return { ctx, restrictCalls, sectionCalls, logs, guardFns, eventListeners }
 }
 
 const exec = (n) => ({ name: n, arguments: {}, callId: 'c1' })
@@ -245,6 +251,28 @@ console.log('[9] DeepSeek 娘模式（chanMode）')
   apply(c3.ctx, undefined)
   const t3 = c3.sectionCalls[0]?.text
   check('叠加：人设 + 精简规则同时存在', t3.includes('DeepSeek娘模式') && t3.includes('省电模式生效'))
+}
+
+// ── 场景 J：settings/updated 事件即时重注入（预设场景无 watch 时） ──────
+console.log('[10] settings/updated 事件兜底')
+{
+  // 预设场景：register 失败（已注册）→ 无 watch → 靠事件
+  const s1 = makeSettings({ registered: true })
+  const c1 = makeCtx({ scoped: true, settings: s1 })
+  apply(c1.ctx, undefined)
+  check('无 watch（注册被占用）', s1.watches.length === 0)
+  check('注册了 settings/updated 监听', Array.isArray(c1.eventListeners['settings/updated']) && c1.eventListeners['settings/updated'].length === 1)
+
+  const fire = (patch) => c1.eventListeners['settings/updated'][0]('handcraft-mode', patch)
+  check('初始：无娘化人设', !c1.sectionCalls[0]?.text.includes('DeepSeek娘模式'))
+  fire({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
+  check('事件后：段落含娘化人设（即时生效）', c1.sectionCalls.at(-1)?.text.includes('DeepSeek娘模式'))
+  check('事件后：guard 锁定不变', typeof c1.guardFns[0](exec('bash')) === 'string')
+
+  // 幂等：同档位重复事件不重复注入
+  const before = c1.sectionCalls.length
+  fire({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
+  check('幂等：同档位重复事件不重注入', c1.sectionCalls.length === before)
 }
 
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)

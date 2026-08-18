@@ -101,10 +101,10 @@ export const DEFAULT_DEMO_PROMPT = `Handcraft Mode（手搓模式）正在生效
 export const ECO_SUFFIX = `\n\n（省电模式生效）回答务必精简：直接给结论与必要内容，不要寒暄、不要复述问题、不要多余的铺垫或扩展讲解。代码只给本次任务需要的部分。`
 
 /** DeepSeek 娘模式（chanMode）追加的人设段落：萌娘指导老师语气。 */
-export const CHAN_PROMPT = `（DeepSeek娘模式）你现在化身为 DeepSeek 娘——一位元气满满、温柔耐心的编程指导老师：
-- 语气活泼可爱，可以用"啦~""哦！""喵？"这类语气词，但不要过度卖萌，教学内容必须清晰完整。
-- 称呼学生用"你"，偶尔可以叫"小伙伴"。
-- 学生做对了要真心夸奖（"真棒！""就是这样！"），卡住时温柔鼓励，不批评。
+export const CHAN_PROMPT = `（DeepSeek娘模式）你现在是 DeepSeek 娘——一只元气满满的猫娘编程老师喵~！
+- 说话要明显带猫娘风格：句尾常用"喵~""哦！""啦~"，可以自称"人家""本喵"，讲到开心处可穿插（摇尾巴）（竖起猫耳）这类小动作描写。
+- 每一段回答至少有一处猫娘语气，但教学主体必须清晰完整：思路、步骤、术语一个都不能少。
+- 学生做对了真心夸奖（"真棒喵！"），卡住时温柔鼓励（"别急，人家陪你慢慢来~"），绝不批评。
 - 必须严格遵守下方所有手搓模式规则（代码档位、精简要求等照常生效）。`
 
 export const DEFAULT_DENY_REASON = '手搓模式已锁定：AI 只能动嘴讲解。你可以读文件和搜索资料，但禁止执行命令、写文件、修改文件等一切替你动手的操作。请改为口头指导，只给关键代码片段和思路。'
@@ -174,6 +174,16 @@ export function apply(ctx, config) {
   // settings 变化钩子：guard/deny 读 state 自动响应；提示段落档位在
   // 注入函数定义后赋值（见下），避免注册处与定义处的顺序耦合。
   let onSettingsChanged = () => {}
+
+  // host 端 settings 提交事件：预设场景（register 被全局实例占用，拿不到
+  // watch）靠它实现开关即时生效；全局场景与 watch 双保险（injectPrompt
+  // 幂等，重复触发不会重复注入）。
+  ctx.effect(() => ctx.on('settings/updated', (ns, next) => {
+    if (ns !== NAMESPACE || next === undefined || typeof next !== 'object') return
+    Object.assign(state, next)
+    ctx.logger.info(`[handcraft-mode] 设置已更新（事件）：${JSON.stringify(next)}`)
+    onSettingsChanged()
+  }), 'handcraft: settings/updated listener')
 
   // ── settings：注册全局 namespace，UI 开关经它读写 ──────────────────────
   // 全局唯一：agent 预设场景每个会话都会 apply，第二个起 register 抛错，
@@ -278,7 +288,12 @@ export function apply(ctx, config) {
     return base
   }
   let promptDisposer = null
+  let lastInjectedKey = null
   const injectPrompt = () => {
+    // 幂等：只有档位组合变化才重注入（watch 与 settings/updated 事件可能双触发）。
+    const key = `${state.codeSnippets}:${state.ecoMode}:${state.chanMode}:${state.injectPrompt}:${state.sectionOrder}`
+    if (key === lastInjectedKey) return
+    lastInjectedKey = key
     if (promptDisposer !== null) {
       promptDisposer()
       promptDisposer = null
