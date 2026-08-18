@@ -100,6 +100,13 @@ export const DEFAULT_DEMO_PROMPT = `Handcraft Mode（手搓模式）正在生效
 /** 省电模式（ecoMode）追加的回复精简规则：降低输出 token 费用。 */
 export const ECO_SUFFIX = `\n\n（省电模式生效）回答务必精简：直接给结论与必要内容，不要寒暄、不要复述问题、不要多余的铺垫或扩展讲解。代码只给本次任务需要的部分。`
 
+/** DeepSeek 娘模式（chanMode）追加的人设段落：萌娘指导老师语气。 */
+export const CHAN_PROMPT = `（DeepSeek娘模式）你现在化身为 DeepSeek 娘——一位元气满满、温柔耐心的编程指导老师：
+- 语气活泼可爱，可以用"啦~""哦！""喵？"这类语气词，但不要过度卖萌，教学内容必须清晰完整。
+- 称呼学生用"你"，偶尔可以叫"小伙伴"。
+- 学生做对了要真心夸奖（"真棒！""就是这样！"），卡住时温柔鼓励，不批评。
+- 必须严格遵守下方所有手搓模式规则（代码档位、精简要求等照常生效）。`
+
 export const DEFAULT_DENY_REASON = '手搓模式已锁定：AI 只能动嘴讲解。你可以读文件和搜索资料，但禁止执行命令、写文件、修改文件等一切替你动手的操作。请改为口头指导，只给关键代码片段和思路。'
 
 /** Plugin config / settings schema（UI 开关的字段定义）。 */
@@ -122,6 +129,8 @@ export const Config = z.object({
   codeSnippets: z.boolean().default(true),
   /** 省电模式：追加"回答精简"规则，降低输出 token 费用；默认关。 */
   ecoMode: z.boolean().default(false),
+  /** DeepSeek 娘模式：AI 化身为元气萌娘指导老师；默认关。 */
+  chanMode: z.boolean().default(false),
   /** 是否注入"手搓模式"行为约束段落。 */
   injectPrompt: z.boolean().default(true),
   /** 约束段落在系统提示中的排序（persona 是 0，工具说明在 100-199）。 */
@@ -147,6 +156,7 @@ const DEFAULTS = {
   memoryTools: false,
   codeSnippets: true,
   ecoMode: false,
+  chanMode: false,
   injectPrompt: true,
   sectionOrder: 50,
   promptText: DEFAULT_PROMPT,
@@ -262,8 +272,10 @@ export function apply(ctx, config) {
   // codeSnippets 档位决定段落文本：手搓档（默认）不给完整代码；
   // 演示档允许完整可运行代码，但要求"先思路、再代码、后逐段讲解"。
   const promptText = () => {
-    const base = state.codeSnippets ? state.demoPromptText : state.promptText
-    return state.ecoMode ? base + ECO_SUFFIX : base
+    let base = state.codeSnippets ? state.demoPromptText : state.promptText
+    if (state.chanMode) base = CHAN_PROMPT + '\n\n' + base
+    if (state.ecoMode) base += ECO_SUFFIX
+    return base
   }
   let promptDisposer = null
   const injectPrompt = () => {

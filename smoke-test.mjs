@@ -221,5 +221,31 @@ console.log('[8] 省电模式（ecoMode）')
   check('已存值 ecoMode=true：首段含精简规则', c3.sectionCalls[0]?.text.includes('省电模式生效'))
 }
 
+// ── 场景 I：DeepSeek 娘模式（chanMode） ────────────────────────────────
+console.log('[9] DeepSeek 娘模式（chanMode）')
+{
+  // 默认关
+  const s1 = makeSettings()
+  const c1 = makeCtx({ scoped: true, settings: s1 })
+  apply(c1.ctx, undefined)
+  check('默认娘化关：段落不含娘化人设', !c1.sectionCalls[0]?.text.includes('DeepSeek娘模式'))
+
+  // watch 打开
+  const s2 = makeSettings()
+  const c2 = makeCtx({ scoped: true, settings: s2 })
+  apply(c2.ctx, undefined)
+  s2.watches[0]({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
+  check('watch 打开娘化后：段落含娘化人设', c2.sectionCalls.at(-1)?.text.includes('DeepSeek娘模式'))
+  check('娘化后：人设在规则前', c2.sectionCalls.at(-1)?.text.indexOf('DeepSeek娘模式') < c2.sectionCalls.at(-1)?.text.indexOf('可运行代码演示'))
+  check('娘化后：guard 行为不变（bash 仍拒）', typeof c2.guardFns[0](exec('bash')) === 'string')
+
+  // 娘化 + 省电叠加
+  const s3 = makeSettings({ stored: { chanMode: true, ecoMode: true } })
+  const c3 = makeCtx({ scoped: true, settings: s3 })
+  apply(c3.ctx, undefined)
+  const t3 = c3.sectionCalls[0]?.text
+  check('叠加：人设 + 精简规则同时存在', t3.includes('DeepSeek娘模式') && t3.includes('省电模式生效'))
+}
+
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)
 process.exit(failures === 0 ? 0 : 1)
