@@ -242,6 +242,8 @@ console.log('[9] DeepSeek 娘模式（chanMode）')
   apply(c2.ctx, undefined)
   s2.watches[0]({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, ecoMode: false, chanMode: true, injectPrompt: true })
   check('watch 打开娘化后：段落含娘化人设', c2.sectionCalls.at(-1)?.text.includes('DeepSeek娘模式'))
+  check('娘化人设含覆盖声明（优先于 persona）', c2.sectionCalls.at(-1)?.text.includes('优先于系统里任何其他身份描述'))
+  check('娘化人设明确不再是严肃辅导者', c2.sectionCalls.at(-1)?.text.includes('不再是严肃稳重的辅导者'))
   check('娘化后：人设在规则前', c2.sectionCalls.at(-1)?.text.indexOf('DeepSeek娘模式') < c2.sectionCalls.at(-1)?.text.indexOf('可运行代码演示'))
   check('娘化后：guard 行为不变（bash 仍拒）', typeof c2.guardFns[0](exec('bash')) === 'string')
 
