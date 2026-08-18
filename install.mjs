@@ -83,16 +83,20 @@ if (!existsSync(profilesRoot)) {
 
 // ── 3. 创建链接 ─────────────────────────────────────────────────────────
 function linkInto(linkPath) {
-  try {
-    if (existsSync(linkPath) || lstatSync(linkPath)) {
+  let isLink = false
+  try { isLink = lstatSync(linkPath).isSymbolicLink() } catch { /* 不存在 */ }
+  if (isLink) {
+    // 已是我们建的链接（或任意链接）：更新指向当前目录。
+    rmSync(linkPath, { force: true })
+  } else {
+    try {
       if (statSync(linkPath).isDirectory()) {
         // 同名真实目录（不是链接）：拒绝覆盖，避免误删用户数据。
         console.error(`[install] 目标已存在且是真实目录，跳过（请手动处理）：${linkPath}`)
         return false
       }
-      rmSync(linkPath, { force: true })
-    }
-  } catch { /* 不存在，直接建 */ }
+    } catch { /* 不存在 */ }
+  }
   symlinkSync(HERE, linkPath, process.platform === 'win32' ? 'junction' : 'dir')
   return true
 }
