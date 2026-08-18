@@ -7,7 +7,7 @@
  *   D. 打开写文件后 deny 名单动态移除 write 组
  * 用法：node smoke-test.mjs
  */
-import { name, inject, apply, READ_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
+import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
 
 let failures = 0
 function check(label, cond, detail = '') {
@@ -95,10 +95,11 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
   check('settings 注册跳过（已注册，读取已存值）', settings.registers.length === 1)
   check('guard 已注册（per-agent）', guardFns.length === 1)
   check('读取了已存值（readTools=false 被采用）', guardFns[0](exec('read')) !== undefined)
-  // 动态 deny：readTools=false → 基础名单 + 读组（写组已在基础名单内不重复）。
+  // 动态 deny：readTools=false → 基础名单 + 关闭的读/看图组
+  // （写/记忆组工具已在基础名单内不重复；看图组不在基础名单会追加）。
   // 注意 restrictCalls[0] 是 scoped 探针（{deny: []}），真正名单是最后一次调用。
-  const expectedB = [...DEFAULT_DENY_TOOLS, ...READ_TOOLS]
-  check('restrict deny = 基础名单 + 关闭的读组',
+  const expectedB = [...DEFAULT_DENY_TOOLS, ...READ_TOOLS, ...VISION_TOOLS]
+  check('restrict deny = 基础名单 + 关闭的读/看图组',
     JSON.stringify(restrictCalls.at(-1)) === JSON.stringify({ deny: expectedB }),
     `got ${restrictCalls.at(-1)?.deny?.length} 个`)
   check('section 注入', sectionCalls[0]?.name === 'handcraft-mode:policy')
@@ -110,6 +111,10 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
   check('guard 放行 ask_user_question', guardFns[0](exec('ask_user_question')) === undefined)
   check('guard 默认拒绝 write/edit（写文件默认关）',
     ['write', 'edit', 'str_replace_editor'].every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 默认拒绝看图（visionTools 默认关）',
+    VISION_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 默认拒绝记忆与待办（memoryTools 默认关）',
+    MEMORY_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
   check('guard 拒绝 memory/todo/subagent', ['memory', 'todo_write', 'subagent'].every(n => typeof guardFns[0](exec(n)) === 'string'))
   check('guard 放行 MCP 搜索前缀', guardFns[0](exec('mcp__argo__argo_search')) === undefined)
   check('拒绝理由含"手搓模式"', guardFns[0](exec('bash')).includes('手搓模式'))
@@ -130,11 +135,13 @@ console.log('[4] 场景 C：状态驱动')
   check('watch 后：read 被拒', typeof guard(exec('read')) === 'string')
   check('watch 后：web_search 仍放行', guard(exec('web_search')) === undefined)
 
-  settings.watches[0]({ enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: true, injectPrompt: true })
+  settings.watches[0]({ enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: true, visionTools: true, memoryTools: true, injectPrompt: true })
   check('watch 打开写文件后：write/edit 放行', ['write', 'edit', 'str_replace_editor'].every(n => guard(exec(n)) === undefined))
+  check('watch 打开看图后：describe_image 放行', VISION_TOOLS.every(n => guard(exec(n)) === undefined))
+  check('watch 打开记忆后：memory/dtodo 放行', ['memory', 'dtodo', 'create_goal', 'update_goal'].every(n => guard(exec(n)) === undefined))
 
-  settings.watches[0]({ enabled: false, readTools: false, searchTools: false, askTools: false, writeTools: false, injectPrompt: true })
-  check('总开关关闭：全部放行', ['read', 'bash', 'write'].every(n => guard(exec(n)) === undefined))
+  settings.watches[0]({ enabled: false, readTools: false, visionTools: false, searchTools: false, askTools: false, writeTools: false, memoryTools: false, injectPrompt: true })
+  check('总开关关闭：全部放行', ['read', 'bash', 'write', 'memory'].every(n => guard(exec(n)) === undefined))
 }
 
 // ── 场景 D：打开写文件 → deny 名单动态移除 write 组 ─────────────────────

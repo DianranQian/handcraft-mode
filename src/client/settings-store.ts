@@ -18,9 +18,11 @@ export const HANDCRAFT_SETTINGS_NS = 'handcraft-mode'
 export interface HandcraftSettingsValue {
   enabled: boolean
   readTools: boolean
+  visionTools: boolean
   searchTools: boolean
   askTools: boolean
   writeTools: boolean
+  memoryTools: boolean
   injectPrompt: boolean
 }
 
@@ -33,15 +35,17 @@ export interface HandcraftSettingsState {
   revision: number
 }
 
-/** 从 host 描述符解析当前值（缺字段时用默认；写文件默认关）。 */
+/** 从 host 描述符解析当前值（缺字段时用默认；新能力默认关）。 */
 function valueOf(view: SettingsNamespaceView): HandcraftSettingsValue {
   const raw = (view.value as HandcraftSettingsValue | null) ?? {}
   return {
     enabled: raw.enabled ?? true,
     readTools: raw.readTools ?? true,
+    visionTools: raw.visionTools ?? false,
     searchTools: raw.searchTools ?? true,
     askTools: raw.askTools ?? true,
     writeTools: raw.writeTools ?? false,
+    memoryTools: raw.memoryTools ?? false,
     injectPrompt: raw.injectPrompt ?? true,
   }
 }

@@ -35,9 +35,11 @@ interface ToggleSpec {
 
 const TOGGLES: ToggleSpec[] = [
   { key: 'readTools', label: '读文件', hint: 'read / read_image / glob / grep' },
+  { key: 'visionTools', label: '看图（默认关）', hint: 'describe_image / modlens_read_image' },
   { key: 'searchTools', label: '搜索与网络', hint: 'web_search + MCP 搜索工具' },
   { key: 'askTools', label: '提问', hint: 'ask_user_question' },
   { key: 'writeTools', label: '写文件（默认关）', hint: 'write / edit / str_replace_editor' },
+  { key: 'memoryTools', label: '记忆与待办（默认关）', hint: 'memory / dtodo / 目标管理' },
 ]
 
 /** 行内小开关（原生 checkbox，避免额外组件依赖）。 */

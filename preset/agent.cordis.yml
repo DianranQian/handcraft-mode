@@ -48,7 +48,9 @@
   config:
     enabled: true
     readTools: true
+    visionTools: false
     searchTools: true
     askTools: true
     writeTools: false
+    memoryTools: false
     injectPrompt: true

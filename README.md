@@ -5,7 +5,7 @@ DeepSeek Harness 社区插件：让 AI 只能动嘴、不能替你动手。
 - **会话级生效**：插件装上后**不锁任何会话**；只有你新建会话选了「手搓模式」预设，那个会话才被锁定，其他会话完全不受影响
 - **默认禁止**：执行命令（bash/ssh）、写文件（write/edit）、派活（子代理/浏览器/画布/记忆写入）等
 - **默认允许**（可在 UI 勾选关闭）：读文件（read/read_image/glob/grep）、搜索与网络（web_search + MCP 搜索工具）、提问（ask_user_question）
-- **可选开启**（UI 勾选，默认关）：写文件（write/edit/str_replace_editor）
+- **可选开启**（UI 勾选，默认关）：写文件（write/edit）、看图（describe_image）、记忆与待办（memory/dtodo/目标）
 - AI 不给完整代码让你复制，只给关键代码片段 + 思路讲解，逼你亲手敲；被禁工具对模型不可见，顺带省 token
 
 ## 安装（官方 bundle 机制，两条命令）
@@ -74,9 +74,11 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 | --- | --- | --- |
 | `enabled` | `true` | 总开关；false = 完全放行 |
 | `readTools` | `true` | 读文件：read/read_image/glob/grep |
+| `visionTools` | `false` | 看图：describe_image / modlens_read_image（默认关） |
 | `searchTools` | `true` | 搜索/网络：web_search + `mcp__*` 搜索前缀 |
 | `askTools` | `true` | 提问：ask_user_question |
 | `writeTools` | `false` | 写文件：write/edit/str_replace_editor（默认关） |
+| `memoryTools` | `false` | 记忆与待办：memory/dtodo/目标管理（默认关） |
 | `injectPrompt` | `true` | 注入行为约束段落 |
 | `sectionOrder` | `50` | 约束段落在系统提示中的排序 |
 | `promptText` | 内置 | 自定义约束段落 |

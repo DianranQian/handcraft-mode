@@ -42,6 +42,8 @@ export const NAMESPACE = 'handcraft-mode'
 
 /** 读文件组：模型可以看代码给建议。 */
 export const READ_TOOLS = ['read', 'read_image', 'glob', 'grep']
+/** 看图组：分析用户贴的截图/报错图（默认关）。 */
+export const VISION_TOOLS = ['describe_image', 'modlens_read_image']
 /** 搜索/网络组：web_search + MCP 搜索工具前缀（guard 按前缀放行）。 */
 export const SEARCH_TOOLS = ['web_search']
 export const MCP_SEARCH_PREFIX = 'mcp__argo__'
@@ -49,6 +51,8 @@ export const MCP_SEARCH_PREFIX = 'mcp__argo__'
 export const ASK_TOOLS = ['ask_user_question']
 /** 写文件组：默认关闭，用户可在 UI 打开（写简单文件）。 */
 export const WRITE_TOOLS = ['write', 'edit', 'str_replace_editor']
+/** 记忆与待办组：老师帮记学习进度/待办/目标（默认关）。 */
+export const MEMORY_TOOLS = ['memory', 'dtodo', 'create_goal', 'update_goal']
 
 /**
  * 能力组表：guard 白名单与 restrict deny 名单都从它推导。
@@ -56,9 +60,11 @@ export const WRITE_TOOLS = ['write', 'edit', 'str_replace_editor']
  */
 export const GROUPS = [
   { key: 'readTools', label: '读文件', tools: READ_TOOLS },
+  { key: 'visionTools', label: '看图', tools: VISION_TOOLS },
   { key: 'searchTools', label: '搜索与网络', tools: SEARCH_TOOLS },
   { key: 'askTools', label: '提问', tools: ASK_TOOLS },
   { key: 'writeTools', label: '写文件', tools: WRITE_TOOLS },
+  { key: 'memoryTools', label: '记忆与待办', tools: MEMORY_TOOLS },
 ]
 
 /** 默认 deny 名单：隐藏"替你动手"的工具（可见性锁，guard 才是硬锁）。 */
@@ -90,12 +96,16 @@ export const Config = z.object({
   enabled: z.boolean().default(true),
   /** 允许读文件（read/read_image/glob/grep）。 */
   readTools: z.boolean().default(true),
+  /** 允许看图（describe_image/modlens_read_image）；默认关。 */
+  visionTools: z.boolean().default(false),
   /** 允许搜索与网络（web_search + mcp 搜索工具）。 */
   searchTools: z.boolean().default(true),
   /** 允许提问（ask_user_question）。 */
   askTools: z.boolean().default(true),
-  /** 允许写文件（write/edit/str_replace_editor）；新能力，默认关闭。 */
+  /** 允许写文件（write/edit/str_replace_editor）；默认关。 */
   writeTools: z.boolean().default(false),
+  /** 允许记忆与待办（memory/dtodo/目标管理）；默认关。 */
+  memoryTools: z.boolean().default(false),
   /** 是否注入"手搓模式"行为约束段落。 */
   injectPrompt: z.boolean().default(true),
   /** 约束段落在系统提示中的排序（persona 是 0，工具说明在 100-199）。 */
@@ -112,9 +122,11 @@ export const Config = z.object({
 const DEFAULTS = {
   enabled: true,
   readTools: true,
+  visionTools: false,
   searchTools: true,
   askTools: true,
   writeTools: false,
+  memoryTools: false,
   injectPrompt: true,
   sectionOrder: 50,
   promptText: DEFAULT_PROMPT,
