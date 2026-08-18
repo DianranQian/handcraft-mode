@@ -103,6 +103,8 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
     JSON.stringify(restrictCalls.at(-1)) === JSON.stringify({ deny: expectedB }),
     `got ${restrictCalls.at(-1)?.deny?.length} 个`)
   check('section 注入', sectionCalls[0]?.name === 'handcraft-mode:policy')
+  check('默认手搓档：段落禁止完整代码', sectionCalls[0]?.text.includes('不要输出可直接复制粘贴的完整代码'))
+  check('默认手搓档：段落不含演示档文案', !sectionCalls[0]?.text.includes('完整可运行代码演示'))
   check('guard 拒绝 bash', typeof guardFns[0](exec('bash')) === 'string')
   check('guard 放行 web_search（searchTools 仍开）', guardFns[0](exec('web_search')) === undefined)
   check('guard 拒绝 read（已存值 readTools=false）', typeof guardFns[0](exec('read')) === 'string')
@@ -166,6 +168,34 @@ console.log('[6] scoped 但 restrict 失败（未知工具名）→ guard-only')
   apply(ctx, undefined)
   check('guard 仍生效（拒绝 bash）', typeof guardFns[0](exec('bash')) === 'string')
   check('guard 放行 read', guardFns[0](exec('read')) === undefined)
+}
+
+// ── 场景 G：代码演示档位（codeSnippets） ────────────────────────────────
+console.log('[7] 代码演示档位（codeSnippets）')
+{
+  // 默认（关）：手搓档段落
+  const s1 = makeSettings()
+  const c1 = makeCtx({ scoped: true, settings: s1 })
+  apply(c1.ctx, undefined)
+  check('默认手搓档：禁止完整代码', c1.sectionCalls[0]?.text.includes('不要输出可直接复制粘贴的完整代码'))
+  check('默认手搓档：无演示文案', !c1.sectionCalls[0]?.text.includes('代码演示'))
+
+  // 打开 codeSnippets（watch 推送）：段落切换为演示档
+  const s2 = makeSettings()
+  const c2 = makeCtx({ scoped: true, settings: s2 })
+  apply(c2.ctx, undefined)
+  check('初始为手搓档', c2.sectionCalls[0]?.text.includes('不要输出可直接复制粘贴'))
+  s2.watches[0]({ enabled: true, readTools: true, visionTools: false, searchTools: true, askTools: true, writeTools: false, memoryTools: false, codeSnippets: true, injectPrompt: true })
+  check('watch 打开代码演示后：段落允许完整可运行代码', c2.sectionCalls.at(-1)?.text.includes('可运行代码演示'))
+  check('演示档：要求先思路再代码', c2.sectionCalls.at(-1)?.text.includes('先讲思路'))
+  check('演示档：guard 行为不变（bash 仍拒）', typeof c2.guardFns[0](exec('bash')) === 'string')
+  check('演示档：guard 放行 read', c2.guardFns[0](exec('read')) === undefined)
+
+  // 已存值 codeSnippets=true：直接演示档
+  const s3 = makeSettings({ stored: { codeSnippets: true } })
+  const c3 = makeCtx({ scoped: true, settings: s3 })
+  apply(c3.ctx, undefined)
+  check('已存值 codeSnippets=true：首段即演示档', c3.sectionCalls[0]?.text.includes('可运行代码演示'))
 }
 
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)

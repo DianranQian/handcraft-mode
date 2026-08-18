@@ -55,4 +55,5 @@
     askTools: true
     writeTools: false
     memoryTools: false
+    codeSnippets: false
     injectPrompt: true
