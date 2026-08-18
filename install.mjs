@@ -16,7 +16,7 @@
  * 幂等：重复运行会更新已有链接；pnpm install 清掉链接后重跑即可。
  * 卸载：删掉下面打印的两条链接（和 --preset 装的预设目录）。
  */
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, copyFileSync, statSync, readlinkSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, copyFileSync, statSync, readlinkSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
