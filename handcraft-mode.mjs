@@ -275,12 +275,20 @@ export function apply(ctx, config) {
   // 可重入：settings 变化（watch/事件）时先释放旧 restrict 再注册新的，
   // 让工具层开关（读/搜/问/写/看图/记忆/总开关）对已存在会话也即时生效。
   let restrictDisposer = null
+  let lastDenyKey = null
   const applyRestrict = () => {
     if (restrictDisposer !== null) {
       restrictDisposer()
       restrictDisposer = null
     }
-    if (!state.enabled) return
+    if (!state.enabled) {
+      lastDenyKey = null
+      return
+    }
+    // 幂等：deny 名单未变不重注册（settings/updated 事件可能高频触发）。
+    const key = JSON.stringify(denyList())
+    if (key === lastDenyKey) return
+    lastDenyKey = key
     try {
       restrictDisposer = ctx.tools.restrict({ deny: denyList() })
       ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)

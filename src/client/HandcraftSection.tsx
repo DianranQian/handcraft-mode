@@ -1,13 +1,19 @@
 /**
  * 手搓模式设置分区组件（settings.section 槽，仿 dsh-pet 的 PetSettingsSection）：
- * 设置面板导航出现「手搓模式」分区，内部是总开关 + 六个能力开关。
- * 开关即写即生效（applies: live），无需保存按钮。
+ * 设置面板导航出现「手搓模式」分区，内部是总开关 + 能力开关。
+ *
+ * 交互：乐观更新 + 400ms 合并写入——点击立即切换显示（不等待网络往返），
+ * 连续点击合并为一次批量写入，避免每点一次都触发 settings 写入 + 事件
+ * 广播导致的卡顿（"关了打不开"的卡死感即源于此）。
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { HandcraftSectionState, HandcraftSettingsValue } from './settings-store.ts'
+
+/** 合并写入窗口（ms）：窗口内多次点击只写一次。 */
+const COMMIT_DEBOUNCE_MS = 400
 
 /** 注册侧业务面：渲染器把 hooks 绑定成 useHandcraft 选择器。 */
 export interface HandcraftSectionInjected {
@@ -16,7 +22,7 @@ export interface HandcraftSectionInjected {
   }
   /** 分区首次渲染时拉取描述符。 */
   load: () => Promise<void>
-  /** 写一个能力开关。 */
+  /** 写一个能力开关（由合并写入批量调用）。 */
   set: (field: keyof HandcraftSettingsValue, value: boolean) => Promise<void>
 }
 
@@ -56,18 +62,48 @@ const hintStyle: React.CSSProperties = { opacity: 0.55, fontSize: 12 }
  */
 export function HandcraftSection({ t, useHandcraft, load, set }: HandcraftSectionProps) {
   const state = useHandcraft(snapshot => snapshot)
+  // 乐观草稿：点击立即生效的本地值；合并窗口结束后写入 settings。
+  const [draft, setDraft] = useState<Partial<HandcraftSettingsValue> | null>(null)
+  const pendingRef = useRef<Partial<HandcraftSettingsValue>>({})
+  const timerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     void load()
   }, [load])
 
+  // 卸载时清掉未提交的定时器与草稿。
+  useEffect(() => () => {
+    if (timerRef.current !== undefined) window.clearTimeout(timerRef.current)
+  }, [])
+
   if (state.status === 'unavailable') {
     return <p role="alert">{t('unavailable')}</p>
   }
 
-  const busy = state.status !== 'ready'
-  const value = state.value
-  const disabled = busy || !state.writable || value === null
+  // 渲染值 = 已提交值 + 乐观草稿（点击立即可见）。
+  const value: HandcraftSettingsValue | null =
+    state.value === null && draft === null ? null : { ...(state.value ?? {}), ...(draft ?? {}) } as HandcraftSettingsValue
+  const writable = state.status === 'ready' && state.writable
+  const disabled = !writable || value === null
+
+  const commit = (field: keyof HandcraftSettingsValue, next: boolean) => {
+    if (!writable || value === null) return
+    // 1) 乐观更新本地草稿（立即切换，不等网络）。
+    Object.assign(pendingRef.current, { [field]: next })
+    setDraft({ ...pendingRef.current })
+    // 2) 重置合并窗口：窗口内继续点只更新草稿。
+    if (timerRef.current !== undefined) window.clearTimeout(timerRef.current)
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = undefined
+      const patch = pendingRef.current
+      pendingRef.current = {}
+      setDraft(null)
+      // 3) 合并窗口结束：一次性批量写入（每字段一次 set，串行排队）。
+      for (const [key, v] of Object.entries(patch)) {
+        void set(key as keyof HandcraftSettingsValue, v as boolean)
+      }
+    }, COMMIT_DEBOUNCE_MS)
+  }
 
   return (
     <div>
@@ -78,7 +114,7 @@ export function HandcraftSection({ t, useHandcraft, load, set }: HandcraftSectio
           type="checkbox"
           checked={value?.enabled ?? true}
           disabled={disabled}
-          onChange={(event) => { void set('enabled', event.target.checked) }}
+          onChange={(event) => { commit('enabled', event.target.checked) }}
         />
         <span>{t('master')}</span>
       </label>
@@ -91,7 +127,7 @@ export function HandcraftSection({ t, useHandcraft, load, set }: HandcraftSectio
                 type="checkbox"
                 checked={value ? Boolean(value[key]) : false}
                 disabled={disabled}
-                onChange={(event) => { void set(key, event.target.checked) }}
+                onChange={(event) => { commit(key, event.target.checked) }}
               />
               <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
               <span style={hintStyle}>{hint}</span>
@@ -101,7 +137,7 @@ export function HandcraftSection({ t, useHandcraft, load, set }: HandcraftSectio
       )}
 
       {state.error !== null && <p role="alert" style={{ color: 'var(--danger, #c0392b)' }}>{state.error}</p>}
-      {busy && <p style={{ opacity: 0.5 }}>{t('loading')}</p>}
+      {state.status !== 'ready' && <p style={{ opacity: 0.5 }}>{t('loading')}</p>}
     </div>
   )
 }
