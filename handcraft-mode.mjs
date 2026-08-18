@@ -8,24 +8,23 @@
  *     搜索与网络（web_search + mcp 搜索工具）、提问（ask_user_question）
  *   - 注入行为约束：只给关键代码片段和思路，不给完整代码让用户复制
  *
- * 三层机制：
+ * 三层机制（只作用于启用了手搓模式的会话）：
  *   1. guard（执行闸门，硬锁）：白名单放行（按 settings 开关动态组装），
  *      其余工具调用一律返回拒绝理由；enabled=false 时全放行（退出手搓模式）。
- *   2. restrict（可见性锁，省 token）：deny 名单隐藏"动手类"工具，模型在
- *      系统提示里看不到它们，不浪费输出 token 去尝试调用；名单里未注册的
- *      名字会抛错，自动降级 guard-only（执行仍锁死）。
+ *   2. restrict（可见性锁，省 token）：deny 名单动态计算，隐藏未开放的工具。
  *   3. systemPrompt.section（提示约束）：注入"手搓模式"行为规则段落。
+ *
+ * 会话级设计（重要）：
+ *   全局装载（bundle / --patch）时插件**不锁任何会话**——只注册 settings
+ *   namespace（UI 开关与预设共享）。锁定只发生在 agent 预设装载场景
+ *   （apply 的 ctx 是 agent 的 scoped context）：guard 注册在该 agent 层，
+ *   只影响这个会话（及其子代理链），其他会话完全不受影响。
+ *   启用方式：新建会话时在预设选择器选「手搓模式」。
  *
  * 设置（UI 开关）：
  *   - 注册 settings namespace 'handcraft-mode'（全局唯一，同名重复注册自动跳过），
  *     配置 UI 通过 describe/mutate 读写；scope.watch 驱动 guard 状态实时更新。
- *   - 优先级：schema 默认值 → cordis.yml config（base 层）→ UI 写入（user 层）。
- *
- * 两种装载场景自适应（用 restrict 是否抛"requires a scoped context"区分）：
- *   - agent 预设装载（agent.cordis.yml insert）：ctx 即 agent 的 scoped context，
- *     restrict/section 直接对本 agent 生效，子代理经 scope 链继承。
- *   - host 平面装载（--patch cordis.yml）：ctx 是全局的，restrict 会抛错，
- *     改为监听 agent/created，对每个新 agent 的 agent.ctx 施加同样两道锁。
+ *   - 优先级：schema 默认值 → 预设/bundle config（base 层）→ UI 写入（user 层）。
  *
  * 依赖：仅 @deepseek-ai/schemastery（Config schema），经插件目录内
  * node_modules → 仓库 .pnpm/node_modules 的符号链接解析。
@@ -153,10 +152,31 @@ export function apply(ctx, config) {
     } catch { /* settings 服务不可用则忽略 */ }
   }
 
-  // ── 第二道锁：执行闸门（硬锁，动态状态） ──────────────────────────────
-  // 白名单 = 所有开启能力组的工具并集（+ MCP 搜索前缀）；其余一律拒绝；
-  // enabled=false 全放行。guard 注册到 ctx 所在层：全局 ctx = 所有 agent
-  // 生效；agent scope ctx = 该 agent（及 scope 链子孙）。
+  // ── 判定装载场景 ──────────────────────────────────────────────────────
+  // 探针：restrict 只在 agent 的 scoped context 上可用（全局 ctx 会抛
+  // "requires a scoped context"）。立即释放探针，无副作用。
+  let scoped = false
+  try {
+    const dispose = ctx.tools.restrict({ deny: [] })
+    dispose()
+    scoped = true
+  } catch (error) {
+    const message = String(error?.message ?? error)
+    scoped = !message.includes('requires a scoped context')
+  }
+
+  if (!scoped) {
+    // ── 全局装载（bundle / --patch）：不锁任何会话 ─────────────────────
+    // 只注册 settings（UI 开关与预设共享），手搓模式按会话启用：
+    // 用户新建会话选「手搓模式」预设，该会话的 agent 才会被锁定。
+    ctx.logger.info('[handcraft-mode] 已装载（全局，未锁定任何会话）。')
+    ctx.logger.info('[handcraft-mode] 启用方式：新建会话时在预设选择器选「手搓模式」（会话级）。')
+    return
+  }
+
+  // ── 会话级锁定：只影响当前 agent（及其子代理链） ─────────────────────
+  // 第二道锁：执行闸门（硬锁，动态状态）。白名单 = 所有开启能力组的工具
+  // 并集（+ MCP 搜索前缀）；其余一律拒绝；enabled=false 全放行。
   const allowedNames = () => {
     const set = new Set()
     for (const group of GROUPS) {
@@ -172,9 +192,8 @@ export function apply(ctx, config) {
     return state.denyReason
   })
 
-  // ── 第一道锁的动态 deny 名单 ──────────────────────────────────────────
-  // 与 guard 保持一致的可见性：deny = 基础名单 - 已开启能力组的工具
-  // （开放的工具不能被隐藏）+ 已关闭能力组的工具（关掉的能力被隐藏）。
+  // 第一道锁的动态 deny 名单：与 guard 保持一致的可见性——deny = 基础名单
+  // - 已开启能力组的工具（开放的工具不能被隐藏）+ 已关闭能力组的工具。
   const denyList = () => {
     const enabled = new Set(GROUPS.filter(g => state[g.key]).flatMap(g => g.tools))
     const denied = state.denyTools.filter(n => !enabled.has(n))
@@ -190,28 +209,22 @@ export function apply(ctx, config) {
     const parts = GROUPS.filter(g => state[g.key]).map(g => g.label)
     return parts.join('+') || '（无，全部拒绝）'
   }
-  ctx.logger.info(`[handcraft-mode] 执行闸门已开启：放行 ${summarize()}`)
+  ctx.logger.info(`[handcraft-mode] 本会话已启用：放行 ${summarize()}`)
 
-  // ── 可见性裁剪（deny 名单隐藏未开放的工具，省 token） ────────────────
-  const applyRestrict = (scoped) => {
-    if (!state.enabled) return
-    try {
-      scoped.tools.restrict({ deny: denyList() })
-      ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)
-      return true
-    } catch (error) {
-      // 典型原因：deny 名单含当前部署未注册的名字。降级 guard-only，
-      // 执行仍被锁死，只是模型还看得到这些工具。
-      ctx.logger.warn(`[handcraft-mode] restrict 失败，降级 guard-only: ${error?.message ?? error}`)
-      return false
-    }
+  // 可见性裁剪：deny 名单隐藏未开放的工具（省 token）。
+  try {
+    ctx.tools.restrict({ deny: denyList() })
+    ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)
+  } catch (error) {
+    // 典型原因：deny 名单含当前部署未注册的名字。降级 guard-only，
+    // 执行仍被锁死，只是模型还看得到这些工具。
+    ctx.logger.warn(`[handcraft-mode] restrict 失败，降级 guard-only: ${error?.message ?? error}`)
   }
 
-  // ── 第三层：行为约束段落 ──────────────────────────────────────────────
-  const injectPrompt = (scoped) => {
-    if (!state.injectPrompt) return
+  // 第三层：行为约束段落（注册进本 agent 的 scope 层，随会话销毁清理）。
+  if (state.injectPrompt) {
     try {
-      scoped.systemPrompt.section({
+      ctx.systemPrompt.section({
         name: 'handcraft-mode:policy',
         order: state.sectionOrder,
         text: state.promptText,
@@ -219,30 +232,6 @@ export function apply(ctx, config) {
       ctx.logger.info('[handcraft-mode] 行为约束段落已注入')
     } catch (error) {
       ctx.logger.warn(`[handcraft-mode] 约束段落注入失败（不影响工具锁定）: ${error?.message ?? error}`)
-    }
-  }
-
-  // ── 区分两种装载场景 ──────────────────────────────────────────────────
-  try {
-    ctx.tools.restrict({ deny: denyList() })
-    // 走到这里 = ctx 是 scoped context（agent 预设场景），直接对本 agent 生效。
-    ctx.logger.info(`[handcraft-mode] 可见性已裁剪：隐藏 ${denyList().length} 个工具`)
-    injectPrompt(ctx)
-  } catch (error) {
-    const message = String(error?.message ?? error)
-    if (message.includes('requires a scoped context')) {
-      // 全局 ctx（--patch 场景）：restrict 必须作用在 agent 的 scoped ctx 上。
-      // agent/created 事件携带 { agent }，Agent 对象自带 scoped context 属性
-      // `agent.ctx`（runtime-types.ts）——tools.restrict 正是要求这种 scoped
-      // context，systemPrompt.section 也注册进该 agent 自己的 scope 层。
-      ctx.on('agent/created', ({ agent }) => {
-        applyRestrict(agent.ctx)
-        injectPrompt(agent.ctx)
-      })
-    } else {
-      // scoped 但 deny 名单含未知名字 → guard-only（执行仍锁死）。
-      ctx.logger.warn(`[handcraft-mode] restrict 失败，降级 guard-only: ${message}`)
-      injectPrompt(ctx)
     }
   }
 }

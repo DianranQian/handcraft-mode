@@ -10,6 +10,9 @@
     "./package.json": "./package.json"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.yml"
+    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-connection",
@@ -24,7 +27,7 @@
   "scripts": {
     "bundle": "tsdown",
     "test": "node smoke-test.mjs",
-    "install": "node install.mjs"
+    "prepare": "node ./node_modules/tsdown/dist/cli.mjs"
   },
   "license": "MIT"
 }

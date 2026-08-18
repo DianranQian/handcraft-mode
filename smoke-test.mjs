@@ -1,9 +1,10 @@
 /**
  * handcraft-mode 冒烟测试（零依赖 stub，验证插件行为契约）。
  * 覆盖：
- *   A. host 平面（--patch）：全局 ctx → settings 注册 + agent/created 钩子
- *   B. agent 预设：scoped ctx → settings 注册跳过（已注册）+ 直接锁
- *   C. 状态驱动：开关变化后 guard 行为随之变化
+ *   A. 全局装载（bundle/--patch）：不锁任何会话——不注册 guard，只注册 settings
+ *   B. agent 预设（scoped ctx）：会话级锁定——guard + restrict + section
+ *   C. 状态驱动：settings watch 推更新后 guard 行为随之变化
+ *   D. 打开写文件后 deny 名单动态移除 write 组
  * 用法：node smoke-test.mjs
  */
 import { name, inject, apply, READ_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
@@ -24,11 +25,11 @@ function makeSettings({ registered = false, stored = null } = {}) {
       if (registered) throw new Error(`settings namespace "${ns}" is already registered`)
       return {
         // resolved = 默认全开 → base(config) → user(stored)，user 优先
-        get: () => ({ enabled: true, readTools: true, searchTools: true, askTools: true, injectPrompt: true, ...baseOf(opts), ...(stored ?? {}) }),
+        get: () => ({ enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: false, injectPrompt: true, ...baseOf(opts), ...(stored ?? {}) }),
         watch: (cb) => { watches.push(cb); return () => {} },
       }
     },
-    get: () => (registered ? { enabled: true, readTools: true, searchTools: true, askTools: true, injectPrompt: true, ...(stored ?? {}) } : undefined),
+    get: () => (registered ? { enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: false, injectPrompt: true, ...(stored ?? {}) } : undefined),
     registers, watches,
   }
 }
@@ -37,7 +38,6 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
   const restrictCalls = []
   const sectionCalls = []
   const logs = []
-  const createdListeners = []
   const guardFns = []
   const ctx = {
     tools: {
@@ -49,7 +49,6 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
         return () => {}
       },
     },
-    on(event, cb) { if (event === 'agent/created') createdListeners.push(cb) },
     logger: {
       info: (...a) => logs.push(['info', ...a]),
       warn: (...a) => logs.push(['warn', ...a]),
@@ -61,7 +60,7 @@ function makeCtx({ scoped = false, restrictError = null, settings = null } = {})
       section(section) { sectionCalls.push(section); return () => {} },
     }
   }
-  return { ctx, restrictCalls, sectionCalls, logs, createdListeners, guardFns }
+  return { ctx, restrictCalls, sectionCalls, logs, guardFns }
 }
 
 const exec = (n) => ({ name: n, arguments: {}, callId: 'c1' })
@@ -71,74 +70,56 @@ console.log('[1] export 形状')
 check('name 存在', typeof name === 'string' && name.length > 0, name)
 check('inject 含 tools 与 settings', Array.isArray(inject) && inject.includes('tools') && inject.includes('settings'), JSON.stringify(inject))
 check('apply 是函数', typeof apply === 'function')
-check('工具分组导出', Array.isArray(READ_TOOLS) && Array.isArray(SEARCH_TOOLS) && Array.isArray(ASK_TOOLS))
+check('工具分组导出', Array.isArray(READ_TOOLS) && Array.isArray(SEARCH_TOOLS) && Array.isArray(ASK_TOOLS) && Array.isArray(WRITE_TOOLS))
 check('deny 名单非空', Array.isArray(DEFAULT_DENY_TOOLS) && DEFAULT_DENY_TOOLS.length > 10)
 
-// ── 场景 A：全局 ctx（--patch） ─────────────────────────────────────────
-console.log('[2] 场景 A：全局 ctx（--patch）')
+// ── 场景 A：全局装载 → 不锁任何会话 ────────────────────────────────────
+console.log('[2] 场景 A：全局装载（不锁）')
 {
   const settings = makeSettings()
-  const { ctx, restrictCalls, sectionCalls, logs, createdListeners, guardFns } = makeCtx({ settings })
+  const { ctx, restrictCalls, sectionCalls, logs, guardFns } = makeCtx({ settings })
   apply(ctx, undefined)
-  check('settings 注册成功', settings.registers.length === 1 && settings.registers[0].ns === 'handcraft-mode')
-  check('settings watch 已挂', settings.watches.length === 1)
-  check('guard 已注册', guardFns.length === 1)
-  check('restrict 未直接在全局调用', restrictCalls.length === 0)
-  check('注册了 agent/created 钩子', createdListeners.length === 1)
-
-  const fakeAgent = {
-    id: 'agent-1',
-    ctx: {
-      tools: { restrict(f) { restrictCalls.push(f); return () => {} } },
-      systemPrompt: { section(s) { sectionCalls.push(s); return () => {} } },
-    },
-  }
-  createdListeners[0]({ agent: fakeAgent })
-
-  check('agent/created 里 restrict 用 deny 模式',
-    JSON.stringify(restrictCalls[0]) === JSON.stringify({ deny: DEFAULT_DENY_TOOLS }),
-    JSON.stringify(restrictCalls[0]?.deny?.length))
-  check('agent/created 里注册了约束段落', sectionCalls[0]?.name === 'handcraft-mode:policy')
-  check('约束段落含"只能动嘴"', sectionCalls[0]?.text.includes('只能动嘴'))
-  check('guard 放行 read/glob/grep/web_search/ask_user_question',
-    ['read', 'glob', 'grep', 'web_search', 'ask_user_question'].every(n => guardFns[0](exec(n)) === undefined))
-  check('guard 默认拒绝 write/edit/str_replace_editor（写文件默认关）',
-    ['write', 'edit', 'str_replace_editor'].every(n => typeof guardFns[0](exec(n)) === 'string'))
-  check('guard 拒绝 bash/subagent',
-    ['bash', 'subagent'].every(n => typeof guardFns[0](exec(n)) === 'string'))
-  check('guard 拒绝 memory/todo', ['memory', 'todo_write'].every(n => typeof guardFns[0](exec(n)) === 'string'))
-  check('guard 放行 MCP 搜索前缀', guardFns[0](exec('mcp__argo__argo_search')) === undefined)
-  check('拒绝理由含"手搓模式"', guardFns[0](exec('bash')).includes('手搓模式'))
-  check('默认 deny 名单 = 基础名单（write 未开，write/edit 留在隐藏名单）',
-    JSON.stringify(restrictCalls[0]) === JSON.stringify({ deny: DEFAULT_DENY_TOOLS }),
-    `got ${restrictCalls[0]?.deny?.length} 个`)
+  check('settings 注册成功（UI 开关可用）', settings.registers.length === 1 && settings.registers[0].ns === 'handcraft-mode')
+  check('不注册 guard（不锁任何会话）', guardFns.length === 0)
+  check('不做 restrict', restrictCalls.length === 0)
+  check('不注入约束段落', sectionCalls.length === 0)
+  check('日志提示会话级启用', logs.some(l => String(l[1]).includes('未锁定')))
 }
 
-// ── 场景 B：agent 预设（scoped ctx，settings 已注册） ───────────────────
-console.log('[3] 场景 B：agent 预设（scoped ctx）')
+// ── 场景 B：agent 预设（scoped ctx）→ 会话级锁定 ───────────────────────
+console.log('[3] 场景 B：agent 预设（会话级锁定）')
 {
   const settings = makeSettings({ registered: true, stored: { readTools: false } })
-  const { ctx, restrictCalls, sectionCalls, createdListeners, guardFns, logs } = makeCtx({ scoped: true, settings })
+  const { ctx, restrictCalls, sectionCalls, guardFns } = makeCtx({ scoped: true, settings })
   apply(ctx, undefined)
-  check('settings 注册跳过（已注册）', settings.registers.length === 1)
-  check('读取了已存值（readTools=false 被采用）', guardFns[0](exec('read')) !== undefined) // 已存值关掉读
-  // 动态 deny：readTools=false → 基础名单 + 读组（写组已在基础名单内不重复）
+  check('settings 注册跳过（已注册，读取已存值）', settings.registers.length === 1)
+  check('guard 已注册（per-agent）', guardFns.length === 1)
+  check('读取了已存值（readTools=false 被采用）', guardFns[0](exec('read')) !== undefined)
+  // 动态 deny：readTools=false → 基础名单 + 读组（写组已在基础名单内不重复）。
+  // 注意 restrictCalls[0] 是 scoped 探针（{deny: []}），真正名单是最后一次调用。
   const expectedB = [...DEFAULT_DENY_TOOLS, ...READ_TOOLS]
-  check('restrict 直接在 scoped ctx 上 deny（含关闭的读组）',
-    JSON.stringify(restrictCalls[0]) === JSON.stringify({ deny: expectedB }),
-    `got ${restrictCalls[0]?.deny?.length} 个`)
-  check('section 直接注入', sectionCalls[0]?.name === 'handcraft-mode:policy')
-  check('不再注册 agent/created 钩子', createdListeners.length === 0)
+  check('restrict deny = 基础名单 + 关闭的读组',
+    JSON.stringify(restrictCalls.at(-1)) === JSON.stringify({ deny: expectedB }),
+    `got ${restrictCalls.at(-1)?.deny?.length} 个`)
+  check('section 注入', sectionCalls[0]?.name === 'handcraft-mode:policy')
   check('guard 拒绝 bash', typeof guardFns[0](exec('bash')) === 'string')
   check('guard 放行 web_search（searchTools 仍开）', guardFns[0](exec('web_search')) === undefined)
-  check('日志含跳过提示', logs.some(l => String(l[1]).includes('已注册') || String(l[1]).includes('handcraft')))
+  check('guard 拒绝 read（已存值 readTools=false）', typeof guardFns[0](exec('read')) === 'string')
+  check('guard 拒绝 glob/grep（同属读组，已关闭）',
+    ['glob', 'grep'].every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 放行 ask_user_question', guardFns[0](exec('ask_user_question')) === undefined)
+  check('guard 默认拒绝 write/edit（写文件默认关）',
+    ['write', 'edit', 'str_replace_editor'].every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 拒绝 memory/todo/subagent', ['memory', 'todo_write', 'subagent'].every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 放行 MCP 搜索前缀', guardFns[0](exec('mcp__argo__argo_search')) === undefined)
+  check('拒绝理由含"手搓模式"', guardFns[0](exec('bash')).includes('手搓模式'))
 }
 
 // ── 场景 C：状态驱动 —— settings watch 推更新 ───────────────────────────
 console.log('[4] 场景 C：状态驱动')
 {
   const settings = makeSettings()
-  const { ctx, guardFns } = makeCtx({ settings })
+  const { ctx, guardFns } = makeCtx({ scoped: true, settings })
   apply(ctx, undefined)
   const guard = guardFns[0]
   check('初始：read 放行', guard(exec('read')) === undefined)
@@ -156,45 +137,28 @@ console.log('[4] 场景 C：状态驱动')
   check('总开关关闭：全部放行', ['read', 'bash', 'write'].every(n => guard(exec(n)) === undefined))
 }
 
-// ── 场景 D：全锁与自定义 ────────────────────────────────────────────────
-console.log('[5] 全锁与自定义')
-{
-  const settings = makeSettings()
-  const { ctx, guardFns, restrictCalls } = makeCtx({ scoped: true, settings })
-  apply(ctx, { enabled: true, readTools: false, searchTools: false, askTools: false, writeTools: false, injectPrompt: false, denyTools: ['bash'] })
-  check('全锁：read 被拒', typeof guardFns[0](exec('read')) === 'string')
-  check('全锁：ask_user_question 被拒', typeof guardFns[0](exec('ask_user_question')) === 'string')
-  // 动态 deny：基础 ['bash'] + 全部关闭能力组的工具
-  const expectedDeny = ['bash', ...READ_TOOLS, ...SEARCH_TOOLS, ...ASK_TOOLS, ...WRITE_TOOLS]
-  check('动态 deny 名单 = 基础名单 + 关闭的能力组工具',
-    JSON.stringify(restrictCalls[0]) === JSON.stringify({ deny: expectedDeny }),
-    `got ${JSON.stringify(restrictCalls[0]?.deny)}`)
-  check('injectPrompt=false 不注入', true) // section 注册走 scoped 分支，这里无 section 检查点
-}
-
-// ── 场景 E：scoped 但 restrict 失败（deny 名单未知名字）→ guard-only ────
-console.log('[6] scoped 但 restrict 失败（未知工具名）→ guard-only')
-{
-  const settings = makeSettings()
-  const { ctx, guardFns, createdListeners } = makeCtx({ scoped: true, restrictError: 'tools.restrict() names unknown global tools "nope"', settings })
-  apply(ctx, undefined)
-  check('不注册 agent/created 钩子', createdListeners.length === 0)
-  check('guard 仍生效（拒绝 bash）', typeof guardFns[0](exec('bash')) === 'string')
-  check('guard 放行 read', guardFns[0](exec('read')) === undefined)
-}
-
-// ── 场景 F：打开写文件后 deny 名单动态移除 write 组 ─────────────────────
-console.log('[7] 打开写文件 → deny 名单移除 write 组')
+// ── 场景 D：打开写文件 → deny 名单动态移除 write 组 ─────────────────────
+console.log('[5] 打开写文件 → deny 名单移除 write 组')
 {
   const settings = makeSettings({ stored: { writeTools: true } })
   const { ctx, restrictCalls, guardFns } = makeCtx({ scoped: true, settings })
   apply(ctx, undefined)
-  const deny = restrictCalls[0]?.deny ?? []
+  const deny = restrictCalls.at(-1)?.deny ?? []
   check('deny 名单不再含 write/edit/str_replace_editor',
     !WRITE_TOOLS.some(n => deny.includes(n)), JSON.stringify(deny))
   check('deny 名单仍含 bash（命令仍隐藏）', deny.includes('bash'))
   check('guard 放行 write（已打开）', guardFns[0](exec('write')) === undefined)
   check('guard 仍拒绝 bash', typeof guardFns[0](exec('bash')) === 'string')
+}
+
+// ── 场景 E：scoped 但 restrict 失败（未知工具名）→ guard-only ──────────
+console.log('[6] scoped 但 restrict 失败（未知工具名）→ guard-only')
+{
+  const settings = makeSettings()
+  const { ctx, guardFns } = makeCtx({ scoped: true, restrictError: 'tools.restrict() names unknown global tools "nope"', settings })
+  apply(ctx, undefined)
+  check('guard 仍生效（拒绝 bash）', typeof guardFns[0](exec('bash')) === 'string')
+  check('guard 放行 read', guardFns[0](exec('read')) === undefined)
 }
 
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)
