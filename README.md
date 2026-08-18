@@ -27,6 +27,10 @@ cp preset/preset.yml preset/agent.cordis.yml ~/.dsh/.agent-presets/handcraft/
 > 按提示把包名加入 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds` 后重试
 > （详见官方 publish 文档）。不想开构建权限就发布 npm 或用 `pnpm pack` 的 tarball。
 
+## 网页版提示词（不用装插件也能用）
+
+不想装插件？复制 `prompt.md` 里的提示词粘贴到 DeepSeek 网页版 / App 即可获得手搓模式体验（含手搓档、演示档两个选择）。详见 [prompt.md](prompt.md)。
+
 ## 使用
 
 1. 新建会话 → 预设选择器选「手搓模式」→ 只有这个会话被锁定
