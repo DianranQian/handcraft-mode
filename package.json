@@ -1,0 +1,31 @@
+{
+  "name": "handcraft-mode",
+  "description": "手搓模式：DeepSeek Harness 插件，AI 只能动嘴不能动手。host 半锁工具，client 半提供设置面板 UI 开关。",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./handcraft-mode.mjs",
+  "exports": {
+    ".": "./handcraft-mode.mjs",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "test": "node smoke-test.mjs",
+    "install": "node install.mjs"
+  },
+  "license": "MIT"
+}
+

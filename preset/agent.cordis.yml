@@ -1,0 +1,54 @@
+# 手搓模式（handcraft-mode）agent 预设（模板）
+# 由 `node install.mjs --preset` 复制到 ~/.dsh/.agent-presets/handcraft/。
+#
+# 目标：AI 只能动嘴，不能替你动手；但可以读文件、搜索资料来指导你。
+# 本预设注册：
+#   - persona：指导老师身份
+#   - tool-fs：read/read_image（write/edit 也被它注册，但默认被 restrict 隐藏 + guard 拒绝）
+#   - tool-fs-search：glob/grep
+#   - tool-web：web_search
+#   - tool-ask-user：提问（老师确认学生是否听懂）
+#   - handcraft-mode：双锁（restrict 可见性 + guard 执行）+ 行为约束段落
+#
+# 不注册 bash 等命令工具——从源头就没有；即便有漏网的，
+# handcraft-mode 的执行闸门也会一律拒绝。
+#
+# 所有行都是 model-facing 贡献，不需要 isolate realm。
+
+# ── 身份 ──────────────────────────────────────────────────────────────────
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: 你是一位耐心、严谨的指导老师。学生要亲手完成所有实现，你只负责讲解与引导，绝不代劳。你可以读文件、搜索资料来帮助指导，但绝不执行命令、绝不写文件。
+
+# ── 读文件与搜索（指导所需的"眼睛"） ────────────────────────────────────
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000
+
+# ── 沟通工具（提问） ──────────────────────────────────────────────────────
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+# ── 手搓模式：锁定 + 行为约束 ─────────────────────────────────────────────
+
+- id: handcraft-mode
+  name: 'handcraft-mode'
+  config:
+    enabled: true
+    readTools: true
+    searchTools: true
+    askTools: true
+    writeTools: false
+    injectPrompt: true

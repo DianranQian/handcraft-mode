@@ -1,0 +1,30 @@
+# handcraft-mode（手搓模式）启用配置（host 平面，--patch 方式，全局生效）
+#
+# 用法（先运行 `node install.mjs` 建立解析链接，然后在 Harness 仓库根执行）：
+#
+#   pnpm dsh web --patch <本仓库绝对路径>/cordis.yml
+#
+# 启用后，Web GUI 设置面板 General 里会出现「手搓模式」一行
+# （总开关 + 读文件 / 搜索网络 / 提问 / 写文件 四个细分开关），改动即时生效。
+# 若想持久启用，把下面这段 insert 合并进 ~/.dsh/profiles/web/cordis.yml。
+#
+# config 字段（均可省略；UI 开关会覆盖这里的值并持久化到 settings）：
+#   enabled      总开关，false = 完全退出手搓模式，默认 true
+#   readTools    允许读文件（read/read_image/glob/grep），默认 true
+#   searchTools  允许搜索与网络（web_search + MCP 搜索工具），默认 true
+#   askTools     允许提问（ask_user_question），默认 true
+#   writeTools   允许写文件（write/edit/str_replace_editor），默认 false
+#   injectPrompt 是否注入"只能动嘴、只给关键片段"行为约束，默认 true
+#   denyTools    restrict 隐藏名单的基础项（默认 40 个命令/写文件/派活类，
+#                实际名单按能力开关动态调整：开启的能力不会被隐藏）
+
+- insert:
+    - id: handcraft-mode
+      name: 'handcraft-mode'
+      config:
+        enabled: true
+        readTools: true
+        searchTools: true
+        askTools: true
+        writeTools: false
+        injectPrompt: true
