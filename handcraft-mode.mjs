@@ -34,8 +34,10 @@ import z from '@deepseek-ai/schemastery'
 
 export const name = 'handcraft-mode'
 
-/** 依赖工具注册表与设置服务；guard/restrict/settings 都从它们走。 */
-export const inject = ['tools', 'settings']
+/** 依赖工具注册表、设置服务与系统提示注册表；guard/restrict/settings/
+ * systemPrompt.section 都从它们走。注意：cordis 服务访问器必须 inject
+ * 声明才可用——漏掉 systemPrompt 会导致约束段落静默注入失败。 */
+export const inject = ['tools', 'settings', 'systemPrompt']
 
 /** settings namespace（全局唯一，UI 开关读写它）。 */
 export const NAMESPACE = 'handcraft-mode'
@@ -90,7 +92,7 @@ export const DEFAULT_PROMPT = `Handcraft Mode（手搓模式）正在生效。�
 - 学生自己动手实现，你负责把每一步说得足够详细（文件路径、写什么内容、大概长什么样），让学生能亲手敲出来。`
 
 /** 代码演示模式的行为约束（codeSnippets=true 时替换默认段落）。 */
-export const DEFAULT_DEMO_PROMPT = `Handcraft Mode（手搓模式）正在生效，当前为「代码演示」档位。你是一名耐心、严谨的指导老师：
+export const DEFAULT_DEMO_PROMPT = `Handcraft Mode（手搓模式）正在生效，当前为「代码演示」档位。你是一位耐心、严谨的指导老师：
 - 你可以读文件、搜索资料来帮助指导，但禁止执行任何命令，禁止写文件、改文件，禁止任何会替你动手的操作。
 - 对初学者可以给出完整的可运行代码演示，但必须遵守顺序：先讲思路（这段代码要做什么、为什么这么做），再给完整代码，最后逐段解释每一部分的作用。
 - 回答必须使用 Markdown 排版：用 ## 标题分节，步骤用列表，完整代码一律放进 \`\`\` 代码块并标注语言（如 \`\`\`python），关键术语用 **加粗**。让答案结构清晰、一眼能看懂。
