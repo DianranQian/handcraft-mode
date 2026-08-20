@@ -85,7 +85,8 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 | `askTools` | `true` | 提问：ask_user_question |
 | `writeTools` | `false` | 写文件：write/edit/str_replace_editor（默认关） |
 | `memoryWriteTools` | `true` | 记忆写入：memory，记住学习进度/偏好（教学用，默认开） |
-| `memoryTools` | `false` | 待办与目标：dtodo/目标管理（默认关） |
+| `todoTools` | `false` | 待办：dtodo（默认关） |
+| `goalTools` | `false` | 目标管理：create_goal/update_goal（默认关） |
 | `codeSnippets` | `true` | 代码演示档：允许 AI 给完整可运行代码（提示层，默认开） |
 | `ecoMode` | `false` | 省电模式：追加"回答精简"规则，降低输出 token 费用 |
 | `chanMode` | `false` | 鲸鱼娘模式：AI 化身治愈系鲸鱼娘指导老师（人设层） |

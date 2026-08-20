@@ -82,8 +82,10 @@ export const ASK_TOOLS = ['ask_user_question']
 export const WRITE_TOOLS = ['write', 'edit', 'str_replace_editor']
 /** 记忆写入组：老师记住学习进度/偏好，跨会话持续教学（默认开）。 */
 export const MEMORY_WRITE_TOOLS = ['memory']
-/** 待办与目标组（默认关）。 */
-export const TODO_TOOLS = ['dtodo', 'create_goal', 'update_goal']
+/** 待办组（默认关）。 */
+export const TODO_TOOLS = ['dtodo']
+/** 目标组（默认关）。 */
+export const GOAL_TOOLS = ['create_goal', 'update_goal']
 
 /**
  * 能力组表：guard 白名单与 restrict deny 名单都从它推导。
@@ -96,7 +98,8 @@ export const GROUPS = [
   { key: 'askTools', label: '提问', tools: ASK_TOOLS },
   { key: 'writeTools', label: '写文件', tools: WRITE_TOOLS },
   { key: 'memoryWriteTools', label: '记忆写入', tools: MEMORY_WRITE_TOOLS },
-  { key: 'memoryTools', label: '待办与目标', tools: TODO_TOOLS },
+  { key: 'todoTools', label: '待办', tools: TODO_TOOLS },
+  { key: 'goalTools', label: '目标', tools: GOAL_TOOLS },
 ]
 
 /** 默认 deny 名单：隐藏"替你动手"的工具（可见性锁，guard 才是硬锁）。 */
@@ -158,8 +161,10 @@ export const Config = z.object({
   writeTools: z.boolean().default(false),
   /** 允许记忆写入（memory：记住学习进度/偏好）；教学用，默认开。 */
   memoryWriteTools: z.boolean().default(true),
-  /** 允许待办与目标（dtodo/目标管理）；默认关。 */
-  memoryTools: z.boolean().default(false),
+  /** 允许待办（dtodo）；默认关。 */
+  todoTools: z.boolean().default(false),
+  /** 允许目标管理（create_goal/update_goal）；默认关。 */
+  goalTools: z.boolean().default(false),
   /** 代码演示档位：允许 AI 给完整可运行代码（提示层，非工具）；默认开。 */
   codeSnippets: z.boolean().default(true),
   /** 省电模式：追加"回答精简"规则，降低输出 token 费用；默认关。 */
@@ -189,7 +194,8 @@ const DEFAULTS = {
   askTools: true,
   writeTools: false,
   memoryWriteTools: true,
-  memoryTools: false,
+  todoTools: false,
+  goalTools: false,
   codeSnippets: true,
   ecoMode: false,
   chanMode: false,

@@ -23,7 +23,8 @@ export interface HandcraftSettingsValue {
   askTools: boolean
   writeTools: boolean
   memoryWriteTools: boolean
-  memoryTools: boolean
+  todoTools: boolean
+  goalTools: boolean
   codeSnippets: boolean
   ecoMode: boolean
   chanMode: boolean
@@ -47,7 +48,8 @@ const DEFAULTS: HandcraftSettingsValue = {
   askTools: true,
   writeTools: false,
   memoryWriteTools: true,
-  memoryTools: false,
+  todoTools: false,
+  goalTools: false,
   codeSnippets: true,
   ecoMode: false,
   chanMode: false,

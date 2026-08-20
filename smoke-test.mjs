@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 // 隔离：installPreset 写入临时 DSH_HOME，不碰真实 ~/.dsh
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'hm-smoke-'))
-import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_WRITE_TOOLS, TODO_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
+import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_WRITE_TOOLS, TODO_TOOLS, GOAL_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
 
 let failures = 0
 function check(label, cond, detail = '') {
@@ -130,8 +130,10 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
     VISION_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
   check('guard 默认放行记忆写入（memoryWriteTools 默认开）',
     MEMORY_WRITE_TOOLS.every(n => guardFns[0](exec(n)) === undefined))
-  check('guard 默认拒绝待办与目标（memoryTools 默认关）',
+  check('guard 默认拒绝待办（todoTools 默认关）',
     TODO_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 默认拒绝目标（goalTools 默认关）',
+    GOAL_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
   check('guard 拒绝 subagent', typeof guardFns[0](exec('subagent')) === 'string')
   check('guard 放行 MCP 搜索前缀', guardFns[0](exec('mcp__argo__argo_search')) === undefined)
   check('拒绝理由含"手搓模式"', guardFns[0](exec('bash')).includes('手搓模式'))
@@ -152,10 +154,10 @@ console.log('[4] 场景 C：状态驱动')
   check('watch 后：read 被拒', typeof guard(exec('read')) === 'string')
   check('watch 后：web_search 仍放行', guard(exec('web_search')) === undefined)
 
-  settings.watches[0]({ enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: true, visionTools: true, memoryTools: true, injectPrompt: true })
+  settings.watches[0]({ enabled: true, readTools: true, searchTools: true, askTools: true, writeTools: true, visionTools: true, memoryWriteTools: true, todoTools: true, goalTools: true, injectPrompt: true })
   check('watch 打开写文件后：write/edit 放行', ['write', 'edit', 'str_replace_editor'].every(n => guard(exec(n)) === undefined))
   check('watch 打开看图后：describe_image 放行', VISION_TOOLS.every(n => guard(exec(n)) === undefined))
-  check('watch 打开记忆后：memory/dtodo 放行', ['memory', 'dtodo', 'create_goal', 'update_goal'].every(n => guard(exec(n)) === undefined))
+  check('watch 打开记忆/待办/目标后：全部放行', ['memory', 'dtodo', 'create_goal', 'update_goal'].every(n => guard(exec(n)) === undefined))
 
   settings.watches[0]({ enabled: false, readTools: false, visionTools: false, searchTools: false, askTools: false, writeTools: false, memoryTools: false, injectPrompt: true })
   check('总开关关闭：全部放行', ['read', 'bash', 'write', 'memory'].every(n => guard(exec(n)) === undefined))
