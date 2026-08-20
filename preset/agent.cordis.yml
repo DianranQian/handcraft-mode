@@ -1,5 +1,6 @@
 # 手搓模式（handcraft-mode）agent 预设（模板）
-# 由 `node install.mjs --preset` 复制到 ~/.dsh/.agent-presets/handcraft/。
+# 必装：插件靠它提供「手搓模式」会话入口（会话级启用的唯一方式）。
+# 安装：把本目录两个文件复制到 ~/.dsh/.agent-presets/handcraft/（见 README）。
 #
 # 目标：AI 只能动嘴，不能替你动手；但可以读文件、搜索资料来指导你。
 # 本预设注册：

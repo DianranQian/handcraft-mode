@@ -14,10 +14,17 @@ DeepSeek Harness 社区插件：让 AI 只能动嘴、不能替你动手。
 # 1) 安装插件包（装进 profile，自动启用 bundle 层）
 pnpm dsh plugin --profile web add github:DianranQian/handcraft-mode
 
-# 2) （可选）安装 agent 预设：新建会话时可选「手搓模式」
+# 2) 安装 agent 预设（必装！这是「手搓模式」会话的唯一入口，
+#    不装预设插件无法在会话里启用。从安装后的包目录复制模板）：
 mkdir -p ~/.dsh/.agent-presets/handcraft
-cp preset/preset.yml preset/agent.cordis.yml ~/.dsh/.agent-presets/handcraft/
+cp ~/.dsh/profiles/web/node_modules/handcraft-mode/preset/preset.yml \
+   ~/.dsh/profiles/web/node_modules/handcraft-mode/preset/agent.cordis.yml \
+   ~/.dsh/.agent-presets/handcraft/
 ```
+
+> 预设模板在包内 `preset/`（远程安装后位于 `~/.dsh/profiles/web/node_modules/handcraft-mode/preset/`；
+> 本地开发则在插件仓库的 `preset/`）。它是干净的模板（无任何本机路径，引用均为包名），
+> 直接复制即可。**顺序**：先装插件包，再装预设——预设装载依赖插件包在 profile 可解析。
 
 重启 dsh web，刷新浏览器。验证：设置面板出现「手搓模式」分区入口。
 
