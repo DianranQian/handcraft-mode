@@ -6,6 +6,7 @@ DeepSeek Harness 社区插件：让 AI 只能动嘴、不能替你动手。
 - **默认禁止**：执行命令（bash/ssh）、写文件（write/edit）、派活（子代理/浏览器/画布/记忆写入）等
 - **默认允许**（可在 UI 勾选关闭）：读文件（read/read_image/glob/grep）、搜索与网络（web_search + MCP 搜索工具）、提问（ask_user_question）
 - **代码演示**（默认开，可关）：允许 AI 给完整可运行代码 + 讲解；关掉则只给关键片段（严格手搓档）
+- **记忆写入**（默认开，可关）：AI 记住你的学习进度/卡点/偏好，跨会话持续教学
 - AI 不给完整代码让你复制，只给关键代码片段 + 思路讲解，逼你亲手敲；被禁工具对模型不可见，顺带省 token
 
 ## 安装（官方 bundle 机制，两条命令）
@@ -83,7 +84,8 @@ context），才注册执行闸门（guard，per-agent）——只锁这个会�
 | `searchTools` | `true` | 搜索/网络：web_search + `mcp__*` 搜索前缀 |
 | `askTools` | `true` | 提问：ask_user_question |
 | `writeTools` | `false` | 写文件：write/edit/str_replace_editor（默认关） |
-| `memoryTools` | `false` | 记忆与待办：memory/dtodo/目标管理（默认关） |
+| `memoryWriteTools` | `true` | 记忆写入：memory，记住学习进度/偏好（教学用，默认开） |
+| `memoryTools` | `false` | 待办与目标：dtodo/目标管理（默认关） |
 | `codeSnippets` | `true` | 代码演示档：允许 AI 给完整可运行代码（提示层，默认开） |
 | `ecoMode` | `false` | 省电模式：追加"回答精简"规则，降低输出 token 费用 |
 | `chanMode` | `false` | 鲸鱼娘模式：AI 化身治愈系鲸鱼娘指导老师（人设层） |

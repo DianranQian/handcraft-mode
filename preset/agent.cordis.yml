@@ -75,6 +75,7 @@
     searchTools: true
     askTools: true
     writeTools: false
+    memoryWriteTools: true
     memoryTools: false
     codeSnippets: true
     ecoMode: false

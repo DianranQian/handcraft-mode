@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 // 隔离：installPreset 写入临时 DSH_HOME，不碰真实 ~/.dsh
 process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'hm-smoke-'))
-import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
+import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_WRITE_TOOLS, TODO_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
 
 let failures = 0
 function check(label, cond, detail = '') {
@@ -111,7 +111,8 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
   // 动态 deny：readTools=false → 基础名单 + 关闭的读/看图组
   // （写/记忆组工具已在基础名单内不重复；看图组不在基础名单会追加）。
   // 注意 restrictCalls[0] 是 scoped 探针（{deny: []}），真正名单是最后一次调用。
-  const expectedB = [...DEFAULT_DENY_TOOLS, ...READ_TOOLS, ...VISION_TOOLS]
+  // memoryWriteTools 默认开 → memory 从 deny 移除；其余关闭组追加。
+  const expectedB = [...DEFAULT_DENY_TOOLS.filter(n => n !== 'memory'), ...READ_TOOLS, ...VISION_TOOLS]
   check('restrict deny = 基础名单 + 关闭的读/看图组',
     JSON.stringify(restrictCalls.at(-1)) === JSON.stringify({ deny: expectedB }),
     `got ${restrictCalls.at(-1)?.deny?.length} 个`)
@@ -127,9 +128,11 @@ console.log('[3] 场景 B：agent 预设（会话级锁定）')
     ['write', 'edit', 'str_replace_editor'].every(n => typeof guardFns[0](exec(n)) === 'string'))
   check('guard 默认拒绝看图（visionTools 默认关）',
     VISION_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
-  check('guard 默认拒绝记忆与待办（memoryTools 默认关）',
-    MEMORY_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
-  check('guard 拒绝 memory/todo/subagent', ['memory', 'todo_write', 'subagent'].every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 默认放行记忆写入（memoryWriteTools 默认开）',
+    MEMORY_WRITE_TOOLS.every(n => guardFns[0](exec(n)) === undefined))
+  check('guard 默认拒绝待办与目标（memoryTools 默认关）',
+    TODO_TOOLS.every(n => typeof guardFns[0](exec(n)) === 'string'))
+  check('guard 拒绝 subagent', typeof guardFns[0](exec('subagent')) === 'string')
   check('guard 放行 MCP 搜索前缀', guardFns[0](exec('mcp__argo__argo_search')) === undefined)
   check('拒绝理由含"手搓模式"', guardFns[0](exec('bash')).includes('手搓模式'))
 }
