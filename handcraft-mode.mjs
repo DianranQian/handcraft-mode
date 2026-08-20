@@ -30,7 +30,34 @@
  * node_modules → 仓库 .pnpm/node_modules 的符号链接解析。
  */
 
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
+
+
+/**
+ * 自动安装「手搓模式」agent 预设（幂等）——解决跨系统路径不通用的问题。
+ * 把包内 preset/ 复制到 $DSH_HOME/.agent-presets/handcraft/（默认
+ * ~/.dsh/.agent-presets/handcraft/）。不启用、不锁定，只是放置预设模板，
+ * 确保新建会话时有「手搓模式」入口。已存在则跳过；失败静默。
+ * @param {import('@deepseek-ai/cordis').Context} ctx
+ */
+function installPreset(ctx) {
+  try {
+    const dshHome = process.env.DSH_HOME ?? join(homedir(), '.dsh')
+    const srcDir = fileURLToPath(new URL('./preset/', import.meta.url))
+    const destDir = join(dshHome, '.agent-presets', 'handcraft')
+    if (existsSync(join(destDir, 'agent.cordis.yml'))) return
+    mkdirSync(destDir, { recursive: true })
+    copyFileSync(join(srcDir, 'preset.yml'), join(destDir, 'preset.yml'))
+    copyFileSync(join(srcDir, 'agent.cordis.yml'), join(destDir, 'agent.cordis.yml'))
+    ctx.logger.info(`[handcraft-mode] 已自动安装「手搓模式」预设 → ${destDir}`)
+  } catch (error) {
+    ctx.logger.warn(`[handcraft-mode] 自动安装预设失败（可手动复制 preset/）: ${error?.message ?? error}`)
+  }
+}
 
 export const name = 'handcraft-mode'
 
@@ -229,6 +256,7 @@ export function apply(ctx, config) {
     // ── 全局装载（bundle / --patch）：不锁任何会话 ─────────────────────
     // 只注册 settings（UI 开关与预设共享），手搓模式按会话启用：
     // 用户新建会话选「手搓模式」预设，该会话的 agent 才会被锁定。
+    installPreset(ctx)
     ctx.logger.info('[handcraft-mode] 已装载（全局，未锁定任何会话）。')
     ctx.logger.info('[handcraft-mode] 启用方式：新建会话时在预设选择器选「手搓模式」（会话级）。')
     return

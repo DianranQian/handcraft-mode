@@ -7,6 +7,11 @@
  *   D. 打开写文件后 deny 名单动态移除 write 组
  * 用法：node smoke-test.mjs
  */
+import { mkdtempSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+// 隔离：installPreset 写入临时 DSH_HOME，不碰真实 ~/.dsh
+process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'hm-smoke-'))
 import { name, inject, apply, READ_TOOLS, VISION_TOOLS, SEARCH_TOOLS, ASK_TOOLS, WRITE_TOOLS, MEMORY_TOOLS, DEFAULT_DENY_TOOLS } from './handcraft-mode.mjs'
 
 let failures = 0
@@ -90,6 +95,8 @@ console.log('[2] 场景 A：全局装载（不锁）')
   check('不做 restrict', restrictCalls.length === 0)
   check('不注入约束段落', sectionCalls.length === 0)
   check('日志提示会话级启用', logs.some(l => String(l[1]).includes('未锁定')))
+  check('自动安装预设到 DSH_HOME/.agent-presets/handcraft',
+    existsSync(join(process.env.DSH_HOME, '.agent-presets', 'handcraft', 'agent.cordis.yml')))
 }
 
 // ── 场景 B：agent 预设（scoped ctx）→ 会话级锁定 ───────────────────────
