@@ -118,17 +118,13 @@ node smoke-test.mjs                             # 冒烟测试（38 项）
 
 ## 卸载
 
-```sh
-# 1) 移除插件包（自动清掉 profile 的 dependencies 和 bundles 层）
-pnpm dsh plugin --profile web remove handcraft-mode
+一条命令完成（移除插件 + 删预设 + 清设置里的手搓模式段）：
 
-# 2) 删除 agent 预设目录
-rm -rf "$DSH_HOME/.agent-presets/handcraft"    # 默认 ~/.dsh/.agent-presets/handcraft
-
-# 3) （可选）清掉设置里手搓模式的自定义开关值：
-#    编辑 $DSH_HOME/settings.yaml，删掉 handcraft-mode: 段（注意备份）
-
-# 4) （可选）删除手搓模式的旧会话记录（GUI 里删，或 rm 对应会话目录）
+```bash
+pnpm dsh plugin --profile web remove handcraft-mode && rm -rf "${DSH_HOME:-$HOME/.dsh}/.agent-presets/handcraft" && sed -i -e '/^handcraft-mode:/,/^[^[:space:]]/d' "${DSH_HOME:-$HOME/.dsh}/settings.yaml" && echo "✔ 手搓模式已完全卸载"
 ```
 
-> 用 `$DSH_HOME`（各系统自动探测）而非写死 `~/.dsh`，跨系统通用。
+> - `$DSH_HOME` 自动探测（默认 `~/.dsh`），跨系统通用
+> - macOS 把 `sed -i -e` 换成 `sed -i '' -e`
+> - 可选：旧会话记录在 GUI 里删（命令行删会误删，不建议）
+> - 已备份 settings.yaml 的话，清设置段那一步可去掉
