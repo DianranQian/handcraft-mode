@@ -115,5 +115,20 @@ node smoke-test.mjs                             # 冒烟测试（38 项）
 - UI 开关对**已存在会话**的执行层即时生效；可见性（restrict）按会话创建时的
   设置快照，改设置后新开会话完全生效。
 - 想彻底全锁（连读/搜/问都不要）：UI 里全部取消勾选即可。
-- 卸载：`pnpm dsh plugin --profile web remove handcraft-mode`，再删掉预设目录
-  与 `~/.dsh/.agent-presets/handcraft`。
+
+## 卸载
+
+```sh
+# 1) 移除插件包（自动清掉 profile 的 dependencies 和 bundles 层）
+pnpm dsh plugin --profile web remove handcraft-mode
+
+# 2) 删除 agent 预设目录
+rm -rf "$DSH_HOME/.agent-presets/handcraft"    # 默认 ~/.dsh/.agent-presets/handcraft
+
+# 3) （可选）清掉设置里手搓模式的自定义开关值：
+#    编辑 $DSH_HOME/settings.yaml，删掉 handcraft-mode: 段（注意备份）
+
+# 4) （可选）删除手搓模式的旧会话记录（GUI 里删，或 rm 对应会话目录）
+```
+
+> 用 `$DSH_HOME`（各系统自动探测）而非写死 `~/.dsh`，跨系统通用。
