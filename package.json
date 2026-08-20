@@ -24,9 +24,7 @@
   },
   "scripts": {
     "bundle": "tsdown",
-    "test": "node smoke-test.mjs",
-    "prepare": "node ./node_modules/tsdown/dist/cli.mjs"
+    "test": "node smoke-test.mjs"
   },
   "license": "MIT"
 }
-
